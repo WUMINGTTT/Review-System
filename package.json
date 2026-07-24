@@ -1,0 +1,27 @@
+{
+  "name": "review-system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "pnpm --filter @review-system/client dev & pnpm --filter @review-system/server dev",
+    "dev:client": "pnpm --filter @review-system/client dev",
+    "dev:server": "pnpm --filter @review-system/server dev",
+    "format": "prettier --write \"packages/**/*.{ts,vue,json,css,scss}\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WUMINGTTT/Review-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/WUMINGTTT/Review-System/issues"
+  },
+  "homepage": "https://github.com/WUMINGTTT/Review-System#readme",
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}

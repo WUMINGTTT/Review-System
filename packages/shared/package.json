@@ -1,0 +1,10 @@
+{
+  "name": "@review-system/shared",
+  "version": "1.0.0",
+  "description": "前后端共享的类型定义和常量",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}

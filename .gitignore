@@ -4,7 +4,7 @@ node_modules
 # 构建产物
 dist
 
-# 环境变量（包含密钥，不能提交）
+# 环境变量
 .env
 .env.local
 .env.*.local
@@ -26,6 +26,6 @@ pnpm-debug.log*
 
 # TypeScript 缓存
 *.tsbuildinfo
-SYSTEM_DESIGN.md
-PROJECT_ROADMAP.md
-docs/auth-tutorial.md
+
+# 开发文档（个人学习用，不提交）
+docs/

@@ -12,10 +12,10 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..",
     "paths": {
       "@shared/*": ["../shared/src/*"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "../shared/src/**/*"]
 }

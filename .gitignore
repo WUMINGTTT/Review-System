@@ -28,3 +28,4 @@ pnpm-debug.log*
 *.tsbuildinfo
 SYSTEM_DESIGN.md
 PROJECT_ROADMAP.md
+docs/auth-tutorial.md

@@ -39,7 +39,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 
 /**
  * 角色守卫中间件
- * @param allowedRoles 允许的角色列表 
+ * @param allowedRoles 允许的角色列表
  */
 export function roleGuard(...allowedRoles: string[]) {
   // 返回一个中间件函数

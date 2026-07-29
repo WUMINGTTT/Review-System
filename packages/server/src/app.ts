@@ -23,6 +23,7 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import authRouter from './routes/auth';
+import userRouter from './routes/user';
 
 // ========== 3. 初始化 Prisma Client ==========
 // PrismaClient 是类型安全的数据库客户端，由 prisma generate 自动生成
@@ -48,6 +49,7 @@ app.use(express.json());
 // ========== 6. 注册路由 ==========
 
 app.use('/api/auth', authRouter);
+app.use('/api/users', userRouter);
 // 健康检查接口
 // 用途: 验证服务器是否正常运行、数据库是否可连接
 // 常见使用场景:

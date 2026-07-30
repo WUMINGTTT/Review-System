@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { register, login, loginByEmail } from '../controllers/auth';
 
-const router: ReturnType<typeof Router> = Router();
+const router: Router = Router();
 
 router.post('/register', register);
 router.post('/login', login);

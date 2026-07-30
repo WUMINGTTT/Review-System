@@ -34,12 +34,6 @@ export interface IEvaluation {
   /** 评价描述/说明 */
   description: string;
   /**
-   * 所属部门（可选）
-   * 用于按部门筛选评价活动，默认取创建者的部门
-   * 创建者也可以手动修改或留空
-   */
-  department?: string;
-  /**
    * 评审人用户 ID 列表
    * 数据库中以 JSON 字符串存储，格式: "[1,2,3]"
    * 评审人必须是系统注册用户（需要登录系统进行评分操作）
@@ -65,8 +59,6 @@ export interface IEvaluation {
   scoreDimensions: IScoreDimension[];
   /** 评价状态（见 constants/status.ts 中的 EvaluationStatus 枚举） */
   status: EvaluationStatus;
-  /** 计划截止时间（ISO 8601 格式，可选） */
-  deadline?: string;
   /** 创建人用户 ID（即本次评价的组织者） */
   createdBy: number;
   /** 创建时间（ISO 8601 格式字符串） */
@@ -94,10 +86,8 @@ export interface IParticipant {
   evaluationId: number;
   /** 被评价人姓名 */
   name: string;
-  /** 被评价人所在部门 */
-  department: string;
-  /** 职位（可选） */
-  position?: string;
+  /** 被评价人说明（如职责、特点等，可选） */
+  description?: string;
   /** 联系电话（可选，便于组织者联系确认信息） */
   phone?: string;
 }

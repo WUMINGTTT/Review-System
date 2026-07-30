@@ -70,9 +70,7 @@ model Evaluation {
   id          Int              @id @default(autoincrement())
   title       String
   description String
-  department  String?
   status      EvaluationStatus @default(DRAFT)
-  deadline    DateTime?
   createdBy   Int              @map("created_by")
   rejectReason String?         @map("reject_reason")
   reviewComment String?        @map("review_comment")
@@ -116,8 +114,7 @@ model Participant {
   id           Int        @id @default(autoincrement())
   evaluationId Int        @map("evaluation_id")
   name         String
-  department   String
-  position     String?
+  description  String?    // 被评价人说明（如职责、特点等）
   phone        String?
 
   // 关联
@@ -134,7 +131,7 @@ model ScoreDimension {
   id           Int      @id @default(autoincrement())
   evaluationId Int      @map("evaluation_id")
   name         String
-  description  String
+  description  String?   // 维度说明，可选
   maxScore     Int      @default(100) @map("max_score")
   weight       Float
 

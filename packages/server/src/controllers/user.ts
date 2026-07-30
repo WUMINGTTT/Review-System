@@ -288,3 +288,36 @@ export async function deleteUser(req: Request, res: Response) {
     res.status(500).json({ success: false, message: '删除用户失败' });
   }
 }
+
+/**
+ * 获取用户选项列表（精简版）
+ *
+ * 权限：所有登录用户
+ * 用途：创建评价时选择评审人，只返回基本信息，不暴露敏感数据
+ *
+ * 返回字段：
+ * - id: 用户 ID
+ * - username: 用户名
+ * - realName: 真实姓名
+ */
+export async function getUserOptions(req: Request, res: Response) {
+  try {
+    const users = await prisma.user.findMany({
+      where: { isActive: true },  // 只返回启用的用户
+      select: {
+        id: true,
+        username: true,
+        realName: true,
+      },
+      orderBy: { username: 'asc' },  // 按用户名排序
+    });
+
+    res.json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error('获取用户选项失败:', error);
+    res.status(500).json({ success: false, message: '获取用户选项失败' });
+  }
+}

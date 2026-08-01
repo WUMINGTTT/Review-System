@@ -21,7 +21,13 @@ import 'dotenv/config';
 // ========== 2. 导入依赖 ==========
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
+
+// 导入自定义中间件
+import { errorHandler } from './middlewares/errorHandler';
 
 // 导入路由模块
 import authRouter from './routes/auth';
@@ -43,15 +49,35 @@ const app = express();
 
 // ========== 5. 注册全局中间件 ==========
 
+// helmet() - 安全头中间件
+// 自动设置各种 HTTP 安全头（X-Content-Type-Options、X-Frame-Options 等）
+app.use(helmet());
+
 // cors() - 跨域资源共享
 // 前端（Vite 开发服务器，默认 5173 端口）和后端（3000 端口）不同源
 // 不注册此中间件，浏览器会拦截前端的 API 请求
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
+}));
+
+// morgan() - 请求日志
+// 开发环境使用 'dev' 格式（彩色简洁），生产环境使用 'combined' 格式（详细）
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // express.json() - 解析请求体
 // 将 Content-Type: application/json 的请求体解析为 JS 对象
 // 解析后通过 req.body 访问，不注册则 req.body 为 undefined
 app.use(express.json());
+
+// rateLimit() - API 限流
+// 防止恶意请求，15 分钟内每个 IP 最多 100 次请求
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟窗口
+  max: 100, // 每个 IP 最多 100 次
+  message: { success: false, error: '请求过于频繁，请稍后再试' }
+});
+app.use('/api/', apiLimiter);
 
 // ========== 6. 注册路由 ==========
 
@@ -95,7 +121,11 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
-// ========== 7. 启动服务器 ==========
+// ========== 7. 错误处理中间件 ==========
+// 必须放在所有路由之后，用于捕获和处理所有未处理的错误
+app.use(errorHandler);
+
+// ========== 8. 启动服务器 ==========
 // process.env.PORT 从 .env 文件读取，若未配置则默认使用 3000
 const PORT = Number(process.env.PORT) || 3000;
 

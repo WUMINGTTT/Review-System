@@ -33,7 +33,7 @@ export async function createEvaluation(req: Request, res: Response) {
       });
     }
 
-    const { title, description, participants, reviewerIds, scoreDimensions } =
+    const { title, description, visibility, participants, reviewerIds, scoreDimensions } =
       validationResult.data;
 
     // 2. 验证评分维度权重之和是否为 100
@@ -63,6 +63,7 @@ export async function createEvaluation(req: Request, res: Response) {
         data: {
           title,
           description,
+          visibility,  // 评分可见性：PUBLIC（公开）或 PRIVATE（隐藏）
           createdBy: req.user!.id, // 从 JWT 中获取当前用户 ID
           status: 'DRAFT', // 初始状态为草稿
         },

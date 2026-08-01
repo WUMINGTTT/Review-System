@@ -7,6 +7,7 @@ import { z } from 'zod';
 export const createEvaluationSchema = z.object({
   title: z.string().min(1, '标题不能为空'),
   description: z.string().min(1, '描述不能为空'),
+  visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),  // 评分可见性，默认公开
   participants: z
     .array(
       z.object({

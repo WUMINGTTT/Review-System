@@ -30,6 +30,11 @@ enum RatingItemStatus {
   SUBMITTED
 }
 
+enum EvaluationVisibility {
+  PUBLIC    // 公开：所有人可见评分结果
+  PRIVATE   // 隐藏：仅创建者和审核者可见
+}
+
 enum NotificationType {
   EVALUATION_SUBMITTED
   EVALUATION_APPROVED
@@ -71,6 +76,7 @@ model Evaluation {
   title       String
   description String
   status      EvaluationStatus @default(DRAFT)
+  visibility  EvaluationVisibility @default(PUBLIC)  // 评分可见性：公开/隐藏
   createdBy   Int              @map("created_by")
   rejectReason String?         @map("reject_reason")
   reviewComment String?        @map("review_comment")

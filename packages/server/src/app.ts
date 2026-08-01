@@ -22,11 +22,14 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+
+// 导入路由模块
 import authRouter from './routes/auth';
 import userRouter from './routes/user';
 import evaluationRouter from './routes/evaluation';
 import statsRouter from './routes/stats';
 import ratingRouter from './routes/rating';
+import reviewRouter from './routes/review';
 
 // ========== 3. 初始化 Prisma Client ==========
 // PrismaClient 是类型安全的数据库客户端，由 prisma generate 自动生成
@@ -56,6 +59,7 @@ app.use('/api/users', userRouter);
 app.use('/api/evaluations', evaluationRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/ratings', ratingRouter);
+app.use('/api/reviews', reviewRouter);
 // 健康检查接口
 // 用途: 验证服务器是否正常运行、数据库是否可连接
 // 常见使用场景:

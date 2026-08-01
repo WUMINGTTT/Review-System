@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../app';
 import { rejectSchema } from '../validations/evaluation';
+import { createNotification } from '../services/notification'; // 导入通知服务
 
 /**
  * 获取待审核列表
@@ -71,6 +72,15 @@ export async function approveReview(req: Request, res: Response) {
       },
     });
 
+    // 5. 发送通知给创建者
+    await createNotification(
+      evaluation.createdBy,           // userId
+      'EVALUATION_APPROVED',          // type
+      '您的评价已通过审核',             // title
+      `评价"${evaluation.title}"已通过审核`, // content
+      evaluation.id                   // relatedId
+    );
+
     res.json({ code: 200, message: '已通过', data: updated });
   } catch (error) {
     console.error('审核通过失败:', error);
@@ -116,6 +126,15 @@ export async function rejectReview(req: Request, res: Response) {
         rejectReason: rejectReason,
       },
     });
+
+    // 发送通知给创建者
+    await createNotification(
+      evaluation.createdBy,           // userId
+      'EVALUATION_REJECTED',          // type
+      '您的评价已被驳回',               // title
+      `评价"${evaluation.title}"已被驳回，原因：${rejectReason}`, // content
+      evaluation.id                   // relatedId
+    );
 
     res.json({ code: 200, message: '已驳回', data: updated });
   } catch (error) {

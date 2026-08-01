@@ -6,6 +6,8 @@ import {
   rejectSchema,
 } from '../validations/evaluation';
 
+import { createNotification } from '../services/notification'; // 导入通知服务
+
 /**
  * 创建评价
  *
@@ -102,7 +104,18 @@ export async function createEvaluation(req: Request, res: Response) {
       return newEvaluation;
     });
 
-    // 5. 返回创建成功的结果
+    // 5. 发送通知给审核者
+    for (const reviewerId of reviewerIds) {
+      await createNotification(
+        reviewerId,                              // userId
+        'ASSIGNED_AS_REVIEWER',                  // type
+        '您被分配为审核者',                        // title
+        `您被分配为评价"${title}"的审核者，请关注`, // content
+        evaluation.id                            // relatedId
+      );
+    }
+
+    // 6. 返回创建成功的结果
     res.status(201).json({
       success: true,
       message: '评价创建成功',
@@ -461,6 +474,22 @@ export async function submitEvaluation(req: Request, res: Response) {
       },
     });
 
+    // 查询审核者列表，发送通知
+    const reviewers = await prisma.evaluationReviewer.findMany({
+      where: { evaluationId: id },
+      select: { reviewerId: true },
+    });
+
+    for (const reviewer of reviewers) {
+      await createNotification(
+        reviewer.reviewerId,                          // userId
+        'EVALUATION_SUBMITTED',                       // type
+        '您有新的评价待审核',                           // title
+        `评价"${evaluation.title}"已提交，请及时审核`, // content
+        evaluation.id                                 // relatedId
+      );
+    }
+
     res.json({
       success: true,
       message: '提交成功',
@@ -647,6 +676,15 @@ export async function archiveEvaluation(req: Request, res: Response) {
         archivedAt: new Date(),
       },
     });
+
+    // 发送通知给创建者
+    await createNotification(
+      evaluation.createdBy,           // userId
+      'EVALUATION_ARCHIVED',          // type
+      '您的评价已归档',                 // title
+      `评价"${evaluation.title}"已归档`, // content
+      evaluation.id                   // relatedId
+    );
 
     res.json({
       success: true,

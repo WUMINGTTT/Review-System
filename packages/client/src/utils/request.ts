@@ -13,9 +13,8 @@
  *   const res = await request.post('/auth/login', { username, password })
  */
 
-import axios from 'axios'
-import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
-import { ElMessage } from 'element-plus'
+import axios from 'axios';
+import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
 /**
  * 创建 axios 实例
@@ -29,7 +28,7 @@ import { ElMessage } from 'element-plus'
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.DEV ? 'http://localhost:3000/api' : '/api',
   timeout: 10000,
-})
+});
 
 /**
  * 请求拦截器
@@ -44,19 +43,19 @@ const request: AxiosInstance = axios.create({
  */
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('token');
     if (token) {
       // Bearer 是 JWT Token 的标准前缀
       // 后端解析时会去掉 "Bearer " 前缀，取后面的 Token 字符串
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return config
+    return config;
   },
   (error) => {
     // 请求发出前的错误（如网络断开、请求配置错误）
-    return Promise.reject(error)
-  }
-)
+    return Promise.reject(error);
+  },
+);
 
 /**
  * 响应拦截器
@@ -72,42 +71,23 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse) => {
     // HTTP 状态码 2xx，直接返回数据
-    return response
+    return response.data;
   },
   (error) => {
     if (error.response) {
-      // 服务器返回了错误状态码
-      const { status } = error.response
+      const { status } = error.response;
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
 
-      switch (status) {
-        case 401:
-          // Token 过期或无效，清除本地登录状态并跳转登录
-          localStorage.removeItem('token')
-          ElMessage.error('登录已过期，请重新登录')
-          window.location.href = '/login'
-          break
-        case 403:
-          ElMessage.error('没有权限执行此操作')
-          break
-        case 404:
-          ElMessage.error('请求的资源不存在')
-          break
-        case 500:
-          ElMessage.error('服务器内部错误')
-          break
-        default:
-          ElMessage.error(error.response.data?.message || '请求失败')
+      // 只处理 401 跳转登录页（排除登录接口本身）
+      if (status === 401 && !isLoginRequest) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
       }
-    } else if (error.code === 'ECONNABORTED') {
-      // 请求超时
-      ElMessage.error('请求超时，请稍后重试')
-    } else {
-      // 网络断开等无法连接服务器的情况
-      ElMessage.error('网络连接失败，请检查网络')
     }
 
-    return Promise.reject(error)
-  }
-)
+    // 将错误抛出，由调用方决定如何处理
+    return Promise.reject(error);
+  },
+);
 
-export default request
+export default request;

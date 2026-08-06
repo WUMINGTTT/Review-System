@@ -38,6 +38,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '登录', requiresAuth: false },
   },
   // TODO: 后续添加主布局路由和子页面路由
+  {
+    // 根路径重定向到登录页
+    path: '/',
+    redirect: '/login',
+    meta: { requiresAuth: false },
+  },
 ]
 
 /**
@@ -71,12 +77,8 @@ router.beforeEach((to, _from, next) => {
 
   if (to.meta.requiresAuth === false) {
     // 不需要登录的页面（如登录页）
-    // 如果已登录，跳转到首页
-    if (token && to.name === 'Login') {
-      next({ name: 'Dashboard' })
-    } else {
-      next()
-    }
+    // TODO: 后续创建 Dashboard 后，已登录用户访问登录页时跳转到 Dashboard
+    next()
   } else {
     // 需要登录的页面
     if (token) {

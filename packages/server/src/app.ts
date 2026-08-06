@@ -56,10 +56,12 @@ app.use(helmet());
 // cors() - 跨域资源共享
 // 前端（Vite 开发服务器，默认 5173 端口）和后端（3000 端口）不同源
 // 不注册此中间件，浏览器会拦截前端的 API 请求
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    credentials: true,
+  }),
+);
 
 // morgan() - 请求日志
 // 开发环境使用 'dev' 格式（彩色简洁），生产环境使用 'combined' 格式（详细）
@@ -75,7 +77,7 @@ app.use(express.json());
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟窗口
   max: 100, // 每个 IP 最多 100 次
-  message: { success: false, error: '请求过于频繁，请稍后再试' }
+  message: { success: false, error: '请求过于频繁，请稍后再试' },
 });
 app.use('/api/', apiLimiter);
 
@@ -130,6 +132,6 @@ app.use(errorHandler);
 const PORT = Number(process.env.PORT) || 3000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
+  console.log(`服务器运行在：http://localhost:${PORT}`);
+  console.log(`接口健康检查：http://localhost:${PORT}/api/health`);
 });

@@ -9,6 +9,7 @@
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { resolve } from 'path'
 
 // 自动导入插件
 // unplugin-auto-import: 自动导入 Vue/Router/Pinia 等的 API（ref、computed、useRouter 等）
@@ -24,6 +25,11 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
   plugins: [
     vue(),
     // 自动导入 Vue、Vue Router、Pinia 的 API

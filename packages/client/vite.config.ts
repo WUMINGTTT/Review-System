@@ -7,22 +7,23 @@
  * - 生产环境优化打包（Rollup）
  */
 
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { resolve } from 'path'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import { resolve } from 'path';
+import VueDevTools from 'vite-plugin-vue-devtools';
 
 // 自动导入插件
 // unplugin-auto-import: 自动导入 Vue/Router/Pinia 等的 API（ref、computed、useRouter 等）
 // 无需在每个文件中手动 import { ref } from 'vue'
-import AutoImport from 'unplugin-auto-import/vite'
+import AutoImport from 'unplugin-auto-import/vite';
 
 // unplugin-vue-components: 自动注册组件（Element Plus 的 el-button、el-input 等）
 // 无需手动 import 和 app.use() 注册
-import Components from 'unplugin-vue-components/vite'
+import Components from 'unplugin-vue-components/vite';
 
 // Element Plus 自动导入解析器
 // 配合 unplugin-vue-components 使用，识别 el-* 组件并按需导入
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 
 export default defineConfig({
   resolve: {
@@ -45,5 +46,6 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
       dts: 'src/components.d.ts',
     }),
+    VueDevTools(),
   ],
-})
+});

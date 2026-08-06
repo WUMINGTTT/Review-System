@@ -37,12 +37,43 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/login/Index.vue'),
     meta: { title: '登录', requiresAuth: false },
   },
-  // TODO: 后续添加主布局路由和子页面路由
   {
-    // 根路径重定向到登录页
+    // 主布局路由
     path: '/',
-    redirect: '/login',
-    meta: { requiresAuth: false },
+    component: () => import('../components/layout/AppLayout.vue'),
+    redirect: '/dashboard',
+    children: [
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('../views/dashboard/Index.vue'),
+        meta: { title: '工作台' },
+      },
+      {
+        path: 'evaluations',
+        name: 'Evaluations',
+        component: () => import('../views/evaluations/Index.vue'),
+        meta: { title: '评价活动' },
+      },
+      {
+        path: 'ratings',
+        name: 'Ratings',
+        component: () => import('../views/ratings/Index.vue'),
+        meta: { title: '我的评分' },
+      },
+      {
+        path: 'reviews',
+        name: 'Reviews',
+        component: () => import('../views/reviews/Index.vue'),
+        meta: { title: '审核管理' },
+      },
+      {
+        path: 'users',
+        name: 'Users',
+        component: () => import('../views/users/Index.vue'),
+        meta: { title: '用户管理', roles: ['ADMIN'] },
+      },
+    ],
   },
 ]
 
@@ -77,8 +108,12 @@ router.beforeEach((to, _from, next) => {
 
   if (to.meta.requiresAuth === false) {
     // 不需要登录的页面（如登录页）
-    // TODO: 后续创建 Dashboard 后，已登录用户访问登录页时跳转到 Dashboard
-    next()
+    // 已登录用户访问登录页时，跳转到工作台
+    if (token && to.name === 'Login') {
+      next({ name: 'Dashboard' })
+    } else {
+      next()
+    }
   } else {
     // 需要登录的页面
     if (token) {

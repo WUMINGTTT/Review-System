@@ -21,3 +21,31 @@ export function getUserOptions() {
 export function getUserById(id: number) {
   return request.get(`/users/${id}`) as Promise<any>
 }
+
+/**
+ * 获取用户列表（管理员）
+ */
+export function getUsers(params?: { page?: number; pageSize?: number; keyword?: string }) {
+  return request.get('/users', { params }) as Promise<any>
+}
+
+/**
+ * 更新用户信息（管理员可修改 roles 和 isActive）
+ */
+export function updateUser(id: number, data: { realName?: string; email?: string; roles?: string[]; isActive?: boolean }) {
+  return request.put(`/users/${id}`, data) as Promise<any>
+}
+
+/**
+ * 启用/禁用用户
+ */
+export function updateUserStatus(id: number, isActive: boolean) {
+  return request.patch(`/users/${id}/status`, { isActive }) as Promise<any>
+}
+
+/**
+ * 删除用户
+ */
+export function deleteUser(id: number) {
+  return request.delete(`/users/${id}`) as Promise<any>
+}

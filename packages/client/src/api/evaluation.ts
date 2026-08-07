@@ -50,3 +50,15 @@ export function rejectEvaluation(id: number, rejectReason: string) {
 export function archiveEvaluation(id: number) {
   return request.post(`/evaluations/${id}/archive`) as Promise<any>
 }
+
+// 提交评分（创建者为被评价人打分）
+export function submitRatings(
+  id: number,
+  ratings: {
+    participantId: number
+    scores: { dimensionId: number; score: number }[]
+    comment?: string
+  }[]
+) {
+  return request.post(`/evaluations/${id}/ratings`, { ratings }) as Promise<any>
+}

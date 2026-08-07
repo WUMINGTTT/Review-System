@@ -9,6 +9,7 @@ import {
   rejectEvaluation,
   approveEvaluation,
   archiveEvaluation,
+  submitRatings,
 } from '../controllers/evaluation';
 import { authMiddleware } from '../middlewares/auth';
 
@@ -24,5 +25,6 @@ router.post('/:id/submit', authMiddleware, submitEvaluation);
 router.post('/:id/approve', authMiddleware, approveEvaluation);
 router.post('/:id/reject', authMiddleware, rejectEvaluation);
 router.post('/:id/archive', authMiddleware, archiveEvaluation);
+router.post('/:id/ratings', authMiddleware, submitRatings);
 
 export default router;

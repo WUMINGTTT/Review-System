@@ -7,57 +7,53 @@
  * 2. 支持审核通过和打回操作
  * 3. 打回需要填写原因
  */
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getMyReviews, approveReview, rejectReview } from '@/api/review'
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getMyReviews, approveReview, rejectReview } from '@/api/review';
 
-const router = useRouter()
+const router = useRouter();
 
 // 审核列表
-const reviews = ref<any[]>([])
-const loading = ref(false)
+const reviews = ref<any[]>([]);
+const loading = ref(false);
 
 // 打回弹窗
-const rejectDialogVisible = ref(false)
-const rejectReason = ref('')
-const rejectingId = ref<number | null>(null)
+const rejectDialogVisible = ref(false);
+const rejectReason = ref('');
+const rejectingId = ref<number | null>(null);
 
 // 格式化日期
 function formatDate(date: string | null | undefined) {
-  if (!date) return '-'
-  return new Date(date).toLocaleString()
+  if (!date) return '-';
+  return new Date(date).toLocaleString();
 }
 
 // 获取待审核列表
 async function fetchReviews() {
-  loading.value = true
+  loading.value = true;
   try {
-    const res = await getMyReviews()
+    const res = await getMyReviews();
     // 兼容后端返回 { code: 200, data } 格式
     if (res.code === 200) {
-      reviews.value = res.data
+      reviews.value = res.data;
     }
   } catch (error) {
-    console.error('获取待审核列表失败:', error)
-    ElMessage.error('获取待审核列表失败')
+    console.error('获取待审核列表失败:', error);
+    ElMessage.error('获取待审核列表失败');
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 // 审核通过
 async function handleApprove(id: number, title: string) {
   try {
-    await ElMessageBox.confirm(
-      `确定要通过评价"${title}"吗？`,
-      '审核确认',
-      { type: 'success' }
-    )
-    const res = await approveReview(id)
+    await ElMessageBox.confirm(`确定要通过评价"${title}"吗？`, '审核确认', { type: 'success' });
+    const res = await approveReview(id);
     if (res.code === 200) {
-      ElMessage.success('审核通过')
-      fetchReviews()
+      ElMessage.success('审核通过');
+      fetchReviews();
     }
   } catch {
     // 取消
@@ -66,39 +62,39 @@ async function handleApprove(id: number, title: string) {
 
 // 打开打回弹窗
 function openRejectDialog(id: number) {
-  rejectingId.value = id
-  rejectReason.value = ''
-  rejectDialogVisible.value = true
+  rejectingId.value = id;
+  rejectReason.value = '';
+  rejectDialogVisible.value = true;
 }
 
 // 确认打回
 async function handleReject() {
   if (!rejectReason.value.trim()) {
-    ElMessage.warning('请填写打回原因')
-    return
+    ElMessage.warning('请填写打回原因');
+    return;
   }
-  if (!rejectingId.value) return
+  if (!rejectingId.value) return;
 
   try {
-    const res = await rejectReview(rejectingId.value, rejectReason.value.trim())
+    const res = await rejectReview(rejectingId.value, rejectReason.value.trim());
     if (res.code === 200) {
-      ElMessage.success('已打回')
-      rejectDialogVisible.value = false
-      fetchReviews()
+      ElMessage.success('已打回');
+      rejectDialogVisible.value = false;
+      fetchReviews();
     }
   } catch (error) {
-    console.error('打回失败:', error)
+    console.error('打回失败:', error);
   }
 }
 
 // 查看评价详情
 function goToDetail(id: number) {
-  router.push(`/evaluations/${id}`)
+  router.push(`/evaluations/${id}`);
 }
 
 onMounted(() => {
-  fetchReviews()
-})
+  fetchReviews();
+});
 </script>
 
 <template>
@@ -121,7 +117,7 @@ onMounted(() => {
           {{ row.creator?.realName || row.creator?.username }}
         </template>
       </el-table-column>
-      <el-table-column label="被评价人数" width="100" align="center">
+      <el-table-column label="被评价人数" width="120" align="center">
         <template #default="{ row }">
           {{ row._count?.participants || 0 }}
         </template>
@@ -136,12 +132,8 @@ onMounted(() => {
           <el-button type="success" link @click="handleApprove(row.id, row.title)">
             通过
           </el-button>
-          <el-button type="warning" link @click="openRejectDialog(row.id)">
-            打回
-          </el-button>
-          <el-button type="primary" link @click="goToDetail(row.id)">
-            详情
-          </el-button>
+          <el-button type="warning" link @click="openRejectDialog(row.id)"> 打回 </el-button>
+          <el-button type="primary" link @click="goToDetail(row.id)"> 详情 </el-button>
         </template>
       </el-table-column>
     </el-table>

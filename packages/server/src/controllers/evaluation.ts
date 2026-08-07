@@ -4,6 +4,7 @@ import {
   createEvaluationSchema,
   updateEvaluationSchema,
   rejectSchema,
+  submitRatingsSchema,
 } from '../validations/evaluation';
 
 import { createNotification } from '../services/notification'; // 导入通知服务
@@ -58,7 +59,7 @@ export async function createEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 4. 使用事务创建评价（4 张表的操作要么全部成功，要么全部失败）
+    // 4. 使用事务创建评价（所有表的操作要么全部成功，要么全部失败）
     const evaluation = await prisma.$transaction(async (tx) => {
       // 4.1 创建评价主记录
       const newEvaluation = await tx.evaluation.create({
@@ -176,11 +177,12 @@ export async function getEvaluations(req: Request, res: Response) {
               realName: true,
             },
           },
-          // 包含被评价人数量
+          // 包含被评价人数量和评分记录数量
           _count: {
             select: {
               participants: true,
               reviewers: true,
+              ratingItems: true,
             },
           },
         },
@@ -242,6 +244,12 @@ export async function getEvaluationById(req: Request, res: Response) {
         },
         // 评分维度列表
         scoreDimensions: true,
+        // 评分记录（含维度分数详情）
+        ratingItems: {
+          include: {
+            dimensionScores: true,
+          },
+        },
       },
     });
 
@@ -694,5 +702,153 @@ export async function archiveEvaluation(req: Request, res: Response) {
   } catch (error) {
     console.error('归档评价失败:', error);
     res.status(500).json({ success: false, message: '归档评价失败' });
+  }
+}
+
+/**
+ * 提交评分（创建者为被评价人打分）
+ *
+ * 流程：
+ * 1. 验证评价存在且为 DRAFT 状态
+ * 2. 验证当前用户是创建者
+ * 3. 删除已有评分记录（如果有）
+ * 4. 为每个被评价人创建 RatingItem + DimensionScore
+ *
+ * 请求体：
+ * {
+ *   ratings: [
+ *     { participantId: 1, scores: [{ dimensionId: 1, score: 85 }, ...], comment: '...' },
+ *     ...
+ *   ]
+ * }
+ */
+export async function submitRatings(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+
+    // 验证请求参数
+    const validationResult = submitRatingsSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: '参数验证失败',
+        errors: validationResult.error.issues,
+      });
+    }
+
+    const { ratings } = validationResult.data;
+
+    // 验证评价存在
+    const evaluation = await prisma.evaluation.findUnique({
+      where: { id },
+      include: {
+        participants: true,
+        scoreDimensions: true,
+      },
+    });
+
+    if (!evaluation) {
+      return res.status(404).json({
+        success: false,
+        message: '评价不存在',
+      });
+    }
+
+    // 权限检查：只有创建者可以评分
+    if (evaluation.createdBy !== req.user!.id) {
+      return res.status(403).json({
+        success: false,
+        message: '只有创建者可以评分',
+      });
+    }
+
+    // 状态检查：只有草稿状态可以评分
+    if (evaluation.status !== 'DRAFT') {
+      return res.status(400).json({
+        success: false,
+        message: '只有草稿状态的评价可以评分',
+      });
+    }
+
+    // 验证评分数据
+    if (!Array.isArray(ratings) || ratings.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '请提供评分数据',
+      });
+    }
+
+    // 使用事务处理评分
+    await prisma.$transaction(async (tx) => {
+      // 删除该评价下当前用户已有的评分记录
+      await tx.dimensionScore.deleteMany({
+        where: {
+          ratingItem: {
+            evaluationId: id,
+            reviewerId: req.user!.id,
+          },
+        },
+      });
+      await tx.ratingItem.deleteMany({
+        where: {
+          evaluationId: id,
+          reviewerId: req.user!.id,
+        },
+      });
+
+      // 为每个被评价人创建评分记录
+      for (const rating of ratings) {
+        const participant = evaluation.participants.find((p) => p.id === rating.participantId);
+        if (!participant) continue;
+
+        // 创建 RatingItem
+        const ratingItem = await tx.ratingItem.create({
+          data: {
+            evaluationId: id,
+            participantId: rating.participantId,
+            reviewerId: req.user!.id,
+            status: 'SUBMITTED',
+            comment: rating.comment,
+          },
+        });
+
+        // 创建各维度的 DimensionScore
+        for (const scoreData of rating.scores) {
+          const dimension = evaluation.scoreDimensions.find(
+            (d) => d.id === scoreData.dimensionId
+          );
+          if (!dimension) continue;
+
+          // 验证分数不超过满分
+          if (scoreData.score > dimension.maxScore) {
+            throw new Error(
+              `被评价人"${participant.name}"的"${dimension.name}"评分不能超过 ${dimension.maxScore}`
+            );
+          }
+
+          await tx.dimensionScore.create({
+            data: {
+              ratingItemId: ratingItem.id,
+              dimensionId: dimension.id,
+              dimensionName: dimension.name,
+              score: scoreData.score,
+              maxScore: dimension.maxScore,
+              weight: dimension.weight,
+            },
+          });
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      message: '评分提交成功',
+    });
+  } catch (error: any) {
+    console.error('提交评分失败:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '提交评分失败',
+    });
   }
 }

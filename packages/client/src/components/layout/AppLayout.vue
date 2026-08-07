@@ -9,7 +9,15 @@ import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessageBox } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { House, Document, User, SwitchButton, Expand, Fold } from '@element-plus/icons-vue';
+import {
+  House,
+  Document,
+  User,
+  SwitchButton,
+  Expand,
+  Fold,
+  ArrowLeft,
+} from '@element-plus/icons-vue';
 
 // ========== 路由相关 ==========
 const route = useRoute(); // 获取当前路由信息
@@ -60,7 +68,6 @@ async function handleLogout() {
       <!-- Logo 区域 -->
       <div class="logo">
         <h1 v-show="!isCollapse">评价系统</h1>
-        <h1 v-show="isCollapse">评</h1>
       </div>
 
       <!-- el-menu: 导航菜单 -->
@@ -95,6 +102,17 @@ async function handleLogout() {
           <span>用户管理</span>
         </el-menu-item>
       </el-menu>
+
+      <!-- 底部折叠按钮 -->
+      <div class="sidebar-bottom">
+        <div class="collapse-btn" @click="toggleCollapse">
+          <el-icon :size="18">
+            <Expand v-if="isCollapse" />
+            <Fold v-else />
+          </el-icon>
+          <span v-show="!isCollapse" class="collapse-text">收起</span>
+        </div>
+      </div>
     </el-aside>
 
     <!-- 右侧内容区 -->
@@ -102,19 +120,22 @@ async function handleLogout() {
       <!-- el-header: 顶栏 -->
       <el-header class="header">
         <div class="header-left">
-          <!-- 折叠按钮 -->
-          <el-icon class="collapse-btn" @click="toggleCollapse">
-            <!-- 根据折叠状态显示不同图标 -->
-            <Expand v-if="isCollapse" />
-            <Fold v-else />
-          </el-icon>
-          <!-- 页面标题，从路由 meta 获取 -->
+          <!-- 返回按钮 -->
+          <template v-if="route.meta.backTo">
+            <span class="back-link" @click="route.meta.backMode === 'back' ? router.back() : router.push(route.meta.backTo as string)">
+              <el-icon :size="16"><ArrowLeft /></el-icon>
+              <span>返回</span>
+            </span>
+            <el-divider direction="vertical" />
+          </template>
           <span class="page-title">{{ route.meta.title }}</span>
         </div>
 
         <div class="header-right">
           <!-- 显示用户名 -->
-          <span class="username">{{ userStore.userInfo?.name }}</span>
+          <span class="username">{{
+            userStore.userInfo?.realName || userStore.userInfo?.username
+          }}</span>
           <!-- 退出按钮 -->
           <el-button :icon="SwitchButton" text @click="handleLogout"> 退出 </el-button>
         </div>
@@ -137,8 +158,10 @@ async function handleLogout() {
 /* 侧边栏样式 */
 .aside {
   background-color: #304156;
-  transition: width 0.3s; /* 宽度变化时有过渡动画 */
+  transition: width 0.3s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Logo 区域 */
@@ -159,6 +182,7 @@ async function handleLogout() {
 .side-menu {
   border-right: none;
   background-color: #304156;
+  flex: 1;
 }
 
 .side-menu:not(.el-menu--collapse) {
@@ -176,6 +200,39 @@ async function handleLogout() {
   color: #409eff;
 }
 
+/* 侧边栏底部 */
+.sidebar-bottom {
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #bfcbd9;
+  transition: all 0.25s ease;
+  padding: 0 12px;
+}
+
+.collapse-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #409eff;
+}
+
+.collapse-btn:active {
+  transform: scale(0.96);
+}
+
+.collapse-text {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 /* 顶栏样式 */
 .header {
   display: flex;
@@ -191,9 +248,19 @@ async function handleLogout() {
   gap: 16px;
 }
 
-.collapse-btn {
-  font-size: 20px;
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #606266;
   cursor: pointer;
+  transition: color 0.2s;
+  user-select: none;
+}
+
+.back-link:hover {
+  color: #409eff;
 }
 
 .page-title {

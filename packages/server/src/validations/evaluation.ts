@@ -43,3 +43,24 @@ export const updateEvaluationSchema = createEvaluationSchema.partial();
 export const rejectSchema = z.object({
   rejectReason: z.string().min(1, '打回原因不能为空'),
 });
+
+/**
+ * 提交评分验证
+ * 创建者为被评价人打分
+ */
+export const submitRatingsSchema = z.object({
+  ratings: z
+    .array(
+      z.object({
+        participantId: z.number(),
+        scores: z.array(
+          z.object({
+            dimensionId: z.number(),
+            score: z.number().min(0),
+          }),
+        ),
+        comment: z.string().optional(),
+      }),
+    )
+    .min(1, '请至少为一个被评价人评分'),
+});

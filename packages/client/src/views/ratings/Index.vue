@@ -12,11 +12,12 @@
  * - DRAFT: 已暂存（填写了部分分数）
  * - SUBMITTED: 已提交（不可修改）
  */
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getMyRatings } from '@/api/rating'
 
+const route = useRoute()
 const router = useRouter()
 
 // 评分数据
@@ -60,7 +61,10 @@ function getCompletionInfo(items: any[]) {
 async function fetchRatings() {
   loading.value = true
   try {
-    const res = await getMyRatings()
+    const evaluationId = route.query.evaluationId
+      ? Number(route.query.evaluationId)
+      : undefined
+    const res = await getMyRatings(evaluationId)
     // 兼容后端返回 { code: 200, data } 格式
     if (res.code === 200) {
       ratings.value = res.data
@@ -72,6 +76,11 @@ async function fetchRatings() {
     loading.value = false
   }
 }
+
+// 监听路由参数变化（从评价活动页点击"开始评分"时触发）
+watch(() => route.query.evaluationId, () => {
+  fetchRatings()
+})
 
 // 跳转到评分页面
 function goToRating(ratingId: number) {

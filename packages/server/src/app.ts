@@ -73,10 +73,11 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 
 // rateLimit() - API 限流
-// 防止恶意请求，15 分钟内每个 IP 最多 100 次请求
+// 防止恶意请求，开发环境放宽限制
+const isDev = process.env.NODE_ENV !== 'production';
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 分钟窗口
-  max: 100, // 每个 IP 最多 100 次
+  windowMs: isDev ? 60 * 1000 : 15 * 60 * 1000, // 开发 1 分钟，生产 15 分钟
+  max: isDev ? 300 : 100, // 开发 300 次，生产 100 次
   message: { success: false, error: '请求过于频繁，请稍后再试' },
 });
 app.use('/api/', apiLimiter);

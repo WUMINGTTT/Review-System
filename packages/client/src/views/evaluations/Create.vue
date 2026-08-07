@@ -629,7 +629,7 @@ function getReviewerName(id: number): string {
           :disabled="!isWeightValid"
           @click="handleSubmit"
         >
-          提交创建
+          确认创建
         </el-button>
       </div>
     </el-card>

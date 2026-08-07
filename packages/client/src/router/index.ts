@@ -66,7 +66,13 @@ const routes: RouteRecordRaw[] = [
         path: 'evaluations/:id',
         name: 'EvaluationDetail',
         component: () => import('../views/evaluations/Detail.vue'),
-        meta: { title: '评价详情' },
+        meta: { title: '评价详情', backTo: '/evaluations' },
+      },
+      {
+        path: 'evaluations/:id/rate',
+        name: 'EvaluationRate',
+        component: () => import('../views/evaluations/Rate.vue'),
+        meta: { title: '评分', backTo: '/evaluations', backMode: 'back' },
       },
       {
         path: 'ratings',

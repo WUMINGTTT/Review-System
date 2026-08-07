@@ -30,3 +30,23 @@ export function createEvaluation(data: {
 export function deleteEvaluation(id: number) {
   return request.delete(`/evaluations/${id}`) as Promise<any>
 }
+
+// 提交评价（DRAFT/REJECTED → SUBMITTED）
+export function submitEvaluation(id: number) {
+  return request.post(`/evaluations/${id}/submit`) as Promise<any>
+}
+
+// 审核通过（SUBMITTED → APPROVED）
+export function approveEvaluation(id: number) {
+  return request.post(`/evaluations/${id}/approve`) as Promise<any>
+}
+
+// 审核打回（SUBMITTED → REJECTED）
+export function rejectEvaluation(id: number, rejectReason: string) {
+  return request.post(`/evaluations/${id}/reject`, { rejectReason }) as Promise<any>
+}
+
+// 归档评价（APPROVED → ARCHIVED）
+export function archiveEvaluation(id: number) {
+  return request.post(`/evaluations/${id}/archive`) as Promise<any>
+}

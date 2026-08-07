@@ -63,10 +63,22 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '创建评价' },
       },
       {
+        path: 'evaluations/:id',
+        name: 'EvaluationDetail',
+        component: () => import('../views/evaluations/Detail.vue'),
+        meta: { title: '评价详情' },
+      },
+      {
         path: 'ratings',
         name: 'Ratings',
         component: () => import('../views/ratings/Index.vue'),
         meta: { title: '我的评分' },
+      },
+      {
+        path: 'ratings/:id',
+        name: 'RatingForm',
+        component: () => import('../views/ratings/Form.vue'),
+        meta: { title: '评分' },
       },
       {
         path: 'reviews',

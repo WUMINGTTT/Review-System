@@ -42,7 +42,17 @@ export const useUserStore = defineStore('user', () => {
     const res: any = await getUserById(Number(userId));
 
     if (res.success) {
-      userInfo.value = res.data;
+      // 注意：getUserById 返回的 roles 是 JSON 字符串（Prisma 存储格式）
+      // login 接口返回的 roles 已经是数组，这里需要统一处理
+      const user = res.data;
+      if (typeof user.roles === 'string') {
+        try {
+          user.roles = JSON.parse(user.roles);
+        } catch {
+          user.roles = [];
+        }
+      }
+      userInfo.value = user;
       return true;
     }
 

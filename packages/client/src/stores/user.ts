@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { loginApi, getMeApi } from '@/api/auth';
+import { loginApi } from '@/api/auth';
+import { getUserById } from '@/api/user';
 
 interface UserInfo {
   id: number;
   username: string;
-  name: string;
-  role: string;
+  realName: string;
+  email: string;
+  roles: string[];
+  isActive: boolean;
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -22,15 +25,21 @@ export const useUserStore = defineStore('user', () => {
       token.value = res.data.token;
       userInfo.value = res.data.user;
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('userId', String(res.data.user.id));
       return true;
     }
 
     return false;
   }
 
-  // 获取用户信息
+  // 获取用户信息（通过用户 ID）
   async function fetchUserInfo() {
-    const res: any = await getMeApi();
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      return false;
+    }
+
+    const res: any = await getUserById(Number(userId));
 
     if (res.success) {
       userInfo.value = res.data;
@@ -45,6 +54,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = '';
     userInfo.value = null;
     localStorage.removeItem('token');
+    localStorage.removeItem('userId');
   }
 
   return {

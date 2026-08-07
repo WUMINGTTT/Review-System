@@ -75,7 +75,8 @@ onMounted(() => {
         <span>快捷操作</span>
       </template>
       <el-space wrap>
-        <el-button type="primary" @click="router.push('/evaluations')"> 查看评价 </el-button>
+        <el-button type="primary" @click="router.push('/evaluations/create')"> 创建评价 </el-button>
+        <el-button @click="router.push('/evaluations')"> 查看评价 </el-button>
         <el-button @click="router.push('/ratings')"> 我的评分 </el-button>
         <el-button @click="router.push('/reviews')"> 审核管理 </el-button>
       </el-space>

@@ -20,6 +20,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 路由表
@@ -54,6 +55,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Evaluations',
         component: () => import('../views/evaluations/Index.vue'),
         meta: { title: '评价活动' },
+      },
+      {
+        path: 'evaluations/create',
+        name: 'EvaluationCreate',
+        component: () => import('../views/evaluations/Create.vue'),
+        meta: { title: '创建评价' },
       },
       {
         path: 'ratings',
@@ -99,7 +106,7 @@ const router = createRouter({
  *
  * TODO: 后续在此处添加角色权限校验逻辑
  */
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // 从 localStorage 获取 Token
   const token = localStorage.getItem('token')
 
@@ -117,6 +124,18 @@ router.beforeEach((to, _from, next) => {
   } else {
     // 需要登录的页面
     if (token) {
+      // 如果有 token 但没有 userInfo，尝试获取用户信息
+      const userStore = useUserStore()
+      if (!userStore.userInfo) {
+        try {
+          await userStore.fetchUserInfo()
+        } catch {
+          // 获取用户信息失败（token 可能已过期），清除 token 并跳转登录页
+          userStore.logout()
+          next({ name: 'Login' })
+          return
+        }
+      }
       next()
     } else {
       next({ name: 'Login' })

@@ -17,13 +17,6 @@ export function loginApi(username: string, password: string) {
 }
 
 /**
- * 获取当前用户信息
- */
-export function getMeApi() {
-  return request.get('/auth/me')
-}
-
-/**
  * 修改密码
  * @param oldPassword 旧密码
  * @param newPassword 新密码

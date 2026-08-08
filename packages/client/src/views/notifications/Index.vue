@@ -3,10 +3,9 @@
  * 通知列表页面
  *
  * 功能:
- * 1. 展示当前用户的通知列表
- * 2. 支持筛选：全部 / 未读 / 已读
- * 3. 标记单条已读 / 全部已读
- * 4. 点击通知跳转到相关评价详情
+ * 1. 展示当前用户的通知列表（卡片样式）
+ * 2. 筛选：全部/未读/已读（抽屉选择）
+ * 3. 标记已读 / 全部已读 / 删除
  */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -19,33 +18,45 @@ const router = useRouter();
 const notifications = ref<any[]>([]);
 const loading = ref(false);
 
-// 分页
 const pagination = ref({
   page: 1,
   pageSize: 10,
   total: 0,
 });
 
-// 筛选：'' | 'true' | 'false'
+// 筛选状态
 const readFilter = ref('');
 
-// 通知类型映射
-const typeMap: Record<string, string> = {
-  EVALUATION_SUBMITTED: '评价已提交',
-  EVALUATION_APPROVED: '评价已通过',
-  EVALUATION_REJECTED: '评价已驳回',
-  EVALUATION_ARCHIVED: '评价已归档',
-  ASSIGNED_AS_REVIEWER: '被分配为审核者',
-  DEADLINE_REMINDER: '截止提醒',
+const filterOptions = [
+  { label: '全部', value: '' },
+  { label: '未读', value: 'false' },
+  { label: '已读', value: 'true' },
+];
+
+const typeMap: Record<string, { label: string; color: string }> = {
+  EVALUATION_SUBMITTED: { label: '已提交', color: '#e6a23c' },
+  EVALUATION_APPROVED: { label: '已通过', color: '#67c23a' },
+  EVALUATION_REJECTED: { label: '已驳回', color: '#f56c6c' },
+  EVALUATION_ARCHIVED: { label: '已归档', color: '#909399' },
+  ASSIGNED_AS_REVIEWER: { label: '审核分配', color: '#409eff' },
+  DEADLINE_REMINDER: { label: '截止提醒', color: '#e6a23c' },
 };
 
-// 格式化日期
 function formatDate(date: string | null | undefined) {
   if (!date) return '-';
-  return new Date(date).toLocaleString();
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes} 分钟前`;
+  if (hours < 24) return `${hours} 小时前`;
+  if (days < 7) return `${days} 天前`;
+  return d.toLocaleDateString();
 }
 
-// 获取通知列表
 async function fetchNotifications() {
   loading.value = true;
   try {
@@ -69,33 +80,27 @@ async function fetchNotifications() {
   }
 }
 
-// 筛选变更
-function handleFilterChange(val: string | number | boolean | undefined) {
-  readFilter.value = String(val || '');
+function applyFilter(val: string) {
+  readFilter.value = val;
   pagination.value.page = 1;
   fetchNotifications();
 }
 
-// 翻页
 function handlePageChange(page: number) {
   pagination.value.page = page;
   fetchNotifications();
 }
 
-// 标记单条已读
 async function handleMarkAsRead(item: any) {
   if (item.isRead) return;
   try {
     const res = await markAsRead(item.id);
-    if (res.success) {
-      item.isRead = true;
-    }
+    if (res.success) item.isRead = true;
   } catch (error) {
     console.error('标记已读失败:', error);
   }
 }
 
-// 标记全部已读
 async function handleMarkAllAsRead() {
   try {
     const res = await markAllAsRead();
@@ -108,7 +113,6 @@ async function handleMarkAllAsRead() {
   }
 }
 
-// 点击通知跳转
 function handleClick(item: any) {
   handleMarkAsRead(item);
   if (item.relatedId) {
@@ -116,9 +120,8 @@ function handleClick(item: any) {
   }
 }
 
-// 删除单条通知
 async function handleDelete(item: any, event: Event) {
-  event.stopPropagation(); // 阻止触发点击通知的跳转
+  event.stopPropagation();
   try {
     await ElMessageBox.confirm('确定删除此通知吗？', '删除确认', {
       type: 'warning',
@@ -135,7 +138,6 @@ async function handleDelete(item: any, event: Event) {
   }
 }
 
-// 清除所有已读通知
 async function handleDeleteRead() {
   try {
     await ElMessageBox.confirm('确定清除所有已读通知吗？', '清除确认', {
@@ -160,50 +162,72 @@ onMounted(() => {
 
 <template>
   <div class="notifications-page">
-    <!-- 顶部操作栏 -->
-    <div class="top-bar">
-      <el-radio-group v-model="readFilter" @change="handleFilterChange">
-        <el-radio-button value="">全部</el-radio-button>
-        <el-radio-button value="false">未读</el-radio-button>
-        <el-radio-button value="true">已读</el-radio-button>
-      </el-radio-group>
-      <div class="top-bar-right">
-        <el-button @click="handleDeleteRead">清除已读</el-button>
-        <el-button @click="handleMarkAllAsRead">全部标记为已读</el-button>
+    <!-- 操作栏：全部单行 -->
+    <div class="toolbar">
+      <!-- 筛选下拉 -->
+      <el-select v-model="readFilter" placeholder="筛选状态" clearable @change="applyFilter" style="width: 130px">
+        <el-option v-for="opt in filterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+      </el-select>
+      <!-- 右侧操作 -->
+      <div class="toolbar-right">
+        <el-button size="small" @click="handleDeleteRead">清除已读</el-button>
+        <el-button size="small" type="primary" @click="handleMarkAllAsRead">全部已读</el-button>
       </div>
     </div>
 
     <!-- 空状态 -->
     <el-empty v-if="!loading && notifications.length === 0" description="暂无通知" />
 
-    <!-- 通知列表 -->
+    <!-- 通知卡片列表 -->
     <div v-loading="loading" class="notification-list">
       <div
         v-for="item in notifications"
         :key="item.id"
-        class="notification-item"
+        class="notification-card"
         :class="{ unread: !item.isRead }"
         @click="handleClick(item)"
       >
-        <div class="notification-dot" v-if="!item.isRead" />
-        <div class="notification-body">
-          <div class="notification-header">
-            <span class="notification-title">{{ item.title }}</span>
-            <el-tag size="small" type="info" effect="plain">
-              {{ typeMap[item.type] || item.type }}
-            </el-tag>
+        <div class="card-left">
+          <div class="card-dot" v-if="!item.isRead" />
+          <div v-else class="card-dot-placeholder" />
+        </div>
+        <div class="card-body">
+          <div class="card-top">
+            <div class="card-title-row">
+              <span class="card-title">{{ item.title }}</span>
+              <el-tag
+                v-if="typeMap[item.type]"
+                :color="typeMap[item.type].color"
+                size="small"
+                effect="dark"
+                class="type-tag"
+              >
+                {{ typeMap[item.type].label }}
+              </el-tag>
+            </div>
             <el-button
               type="danger"
               text
               size="small"
-              class="delete-btn"
+              class="card-delete"
               @click="handleDelete(item, $event)"
             >
-              <el-icon><Delete /></el-icon>
+              <el-icon :size="14"><Delete /></el-icon>
             </el-button>
           </div>
-          <p class="notification-content">{{ item.content }}</p>
-          <span class="notification-time">{{ formatDate(item.createdAt) }}</span>
+          <p class="card-content">{{ item.content }}</p>
+          <div class="card-bottom">
+            <span class="card-time">{{ formatDate(item.createdAt) }}</span>
+            <el-button
+              v-if="!item.isRead && item.relatedId"
+              type="primary"
+              link
+              size="small"
+              @click.stop="handleClick(item)"
+            >
+              查看详情 →
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -226,92 +250,132 @@ onMounted(() => {
   padding: 0;
 }
 
-.top-bar {
+/* 操作栏 — 单行 */
+.toolbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 8px;
 }
 
-.top-bar-right {
+.toolbar-right {
   display: flex;
   gap: 8px;
 }
 
+/* 通知卡片 */
 .notification-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.notification-item {
+.notification-card {
   display: flex;
-  align-items: flex-start;
   gap: 12px;
-  padding: 16px 20px;
+  padding: 16px;
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
-.notification-item:hover {
-  border-color: #c0c4cc;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+.notification-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-color: #d0d5db;
 }
 
-.notification-item.unread {
-  background: #f0f7ff;
-  border-color: #b3d8ff;
+.notification-card.unread {
+  background: #f5f8ff;
 }
 
-.notification-dot {
+.card-left {
+  display: flex;
+  padding-top: 4px;
+}
+
+.card-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #409eff;
+  background: #409eff;
   flex-shrink: 0;
-  margin-top: 6px;
 }
 
-.notification-body {
+.card-dot-placeholder {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
+.card-body {
   flex: 1;
   min-width: 0;
 }
 
-.notification-header {
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.card-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
-.delete-btn {
-  margin-left: auto;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.notification-item:hover .delete-btn {
-  opacity: 1;
-}
-
-.notification-title {
+.card-title {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   color: #303133;
 }
 
-.notification-content {
-  margin: 0 0 4px 0;
-  font-size: 14px;
-  color: #606266;
-  line-height: 1.5;
+.type-tag {
+  flex-shrink: 0;
+  border: none;
+  font-size: 11px;
+  height: 20px;
+  line-height: 20px;
+  padding: 0 6px;
 }
 
-.notification-time {
+.card-delete {
+  flex-shrink: 0;
+  padding: 2px;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.notification-card:hover .card-delete {
+  opacity: 1;
+}
+
+.card-content {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-time {
   font-size: 12px;
-  color: #909399;
+  color: #b0b5bc;
 }
 </style>

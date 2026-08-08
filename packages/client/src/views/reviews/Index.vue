@@ -4,26 +4,24 @@
  *
  * 功能:
  * 1. 展示当前用户作为评审人需要审核的评价列表
- * 2. 点击详情跳转评价详情页进行审核操作
+ * 2. 桌面端表格展示，移动端卡片展示
  */
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { getMyReviews } from '@/api/review';
 
 const router = useRouter();
 
-// 审核列表
 const reviews = ref<any[]>([]);
 const loading = ref(false);
+const isMobile = computed(() => window.innerWidth < 768);
 
-// 格式化日期
 function formatDate(date: string | null | undefined) {
   if (!date) return '-';
   return new Date(date).toLocaleString();
 }
 
-// 获取待审核列表
 async function fetchReviews() {
   loading.value = true;
   try {
@@ -39,7 +37,6 @@ async function fetchReviews() {
   }
 }
 
-// 查看评价详情
 function goToDetail(id: number) {
   router.push(`/evaluations/${id}`);
 }
@@ -54,15 +51,13 @@ onMounted(() => {
     <!-- 空状态 -->
     <el-empty v-if="!loading && reviews.length === 0" description="暂无待审核的评价" />
 
-    <!-- 审核列表 -->
-    <el-table v-else :data="reviews" border stripe>
+    <!-- 桌面端表格 -->
+    <el-table v-else-if="!isMobile" :data="reviews" border stripe>
       <el-table-column type="index" label="序号" width="60" />
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="title" label="评价标题" min-width="200">
         <template #default="{ row }">
-          <el-button type="primary" link @click="goToDetail(row.id)">
-            {{ row.title }}
-          </el-button>
+          <el-button type="primary" link @click="goToDetail(row.id)">{{ row.title }}</el-button>
         </template>
       </el-table-column>
       <el-table-column label="组织者" width="120">
@@ -86,11 +81,79 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 手机端卡片列表 -->
+    <div v-else class="card-list">
+      <div
+        v-for="item in reviews"
+        :key="item.id"
+        class="review-card"
+        @click="goToDetail(item.id)"
+      >
+        <div class="card-top">
+          <span class="card-id">#{{ item.id }}</span>
+          <el-tag type="warning" size="small" effect="plain">待审核</el-tag>
+        </div>
+        <h3 class="card-title">{{ item.title }}</h3>
+        <div class="card-meta">
+          <span>{{ item.creator?.realName || item.creator?.username }}</span>
+          <span>{{ item._count?.participants || 0 }} 人</span>
+          <span>{{ formatDate(item.submittedAt) }}</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .reviews-page {
   padding: 0;
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-card {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.review-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-color: #d0d5db;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.card-id {
+  font-size: 12px;
+  color: #909399;
+  font-family: monospace;
+}
+
+.card-title {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #909399;
 }
 </style>

@@ -22,6 +22,7 @@ const router = useRouter();
 const userStore = useUserStore();
 const loading = ref(false);
 const currentStep = ref(0);
+const isMobile = computed(() => window.innerWidth < 768);
 
 // ========== 步骤 1: 基本信息 ==========
 const step1FormRef = ref<FormInstance>();
@@ -340,19 +341,19 @@ function getReviewerName(id: number): string {
     <!-- 步骤内容 -->
     <el-card class="content-card">
       <!-- 步骤 1: 基本信息 -->
-      <div v-show="currentStep === 0">
+      <div v-show="currentStep === 0" class="step-section">
         <div class="section-header">
-          <span>添加基本信息</span>
+          <span>填写基本信息</span>
         </div>
         <el-form
           ref="step1FormRef"
           :model="step1Form"
           :rules="step1Rules"
-          label-width="100px"
-          style="max-width: 600px"
+          label-position="top"
+          class="step1-form"
         >
           <el-form-item label="评价标题" prop="title">
-            <el-input v-model="step1Form.title" placeholder="请输入评价标题" />
+            <el-input v-model="step1Form.title" placeholder="请输入评价标题" size="large" />
           </el-form-item>
 
           <el-form-item label="评价描述" prop="description">
@@ -365,9 +366,19 @@ function getReviewerName(id: number): string {
           </el-form-item>
 
           <el-form-item label="可见性">
-            <el-radio-group v-model="step1Form.visibility">
-              <el-radio value="PUBLIC">公开（所有人可见评分结果）</el-radio>
-              <el-radio value="PRIVATE">私有（仅创建者和审核者可见）</el-radio>
+            <el-radio-group v-model="step1Form.visibility" class="visibility-group">
+              <el-radio value="PUBLIC">
+                <div class="radio-label">
+                  <span class="radio-title">公开</span>
+                  <span class="radio-desc">所有人可见评分结果</span>
+                </div>
+              </el-radio>
+              <el-radio value="PRIVATE">
+                <div class="radio-label">
+                  <span class="radio-title">私有</span>
+                  <span class="radio-desc">仅创建者和审核者可见</span>
+                </div>
+              </el-radio>
             </el-radio-group>
           </el-form-item>
         </el-form>
@@ -382,7 +393,8 @@ function getReviewerName(id: number): string {
           </el-button>
         </div>
 
-        <el-table :data="participants" border style="width: 100%">
+        <!-- 桌面端表格 -->
+        <el-table v-if="!isMobile" :data="participants" border style="width: 100%">
           <el-table-column type="index" label="序号" width="60" align="center" />
           <el-table-column prop="name" label="姓名" min-width="120" />
           <el-table-column prop="description" label="说明" min-width="150">
@@ -393,20 +405,32 @@ function getReviewerName(id: number): string {
           </el-table-column>
           <el-table-column label="操作" width="160" align="center">
             <template #default="{ $index }">
-              <el-button
-                type="primary"
-                link
-                :icon="Edit"
-                @click="openEditParticipantDialog($index)"
-              >
-                编辑
-              </el-button>
-              <el-button type="danger" link :icon="Delete" @click="removeParticipant($index)">
-                删除
-              </el-button>
+              <el-button type="primary" link :icon="Edit" @click="openEditParticipantDialog($index)">编辑</el-button>
+              <el-button type="danger" link :icon="Delete" @click="removeParticipant($index)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
+        <!-- 手机端卡片 -->
+        <div v-else class="item-grid">
+          <div v-for="(p, index) in participants" :key="index" class="item-card">
+            <div class="item-card-header">
+              <span class="item-index">{{ index + 1 }}</span>
+              <span class="item-name">{{ p.name }}</span>
+              <div class="item-actions">
+                <el-button type="primary" link size="small" @click="openEditParticipantDialog(index)">编辑</el-button>
+                <el-button type="danger" link size="small" @click="removeParticipant(index)">删除</el-button>
+              </div>
+            </div>
+            <div v-if="p.description" class="item-detail">
+              <span class="item-label">说明</span>
+              <span class="item-value">{{ p.description }}</span>
+            </div>
+            <div v-if="p.phone" class="item-detail">
+              <span class="item-label">联系方式</span>
+              <span class="item-value">{{ p.phone }}</span>
+            </div>
+          </div>
+        </div>
 
         <div v-if="participants.length === 0" class="empty-tip">
           暂无被评价人，请点击上方按钮添加
@@ -417,7 +441,7 @@ function getReviewerName(id: number): string {
       <el-dialog
         v-model="participantDialogVisible"
         :title="editingParticipantIndex === -1 ? '添加被评价人' : '编辑被评价人'"
-        width="500px"
+        :width="isMobile ? '95vw' : '500px'"
         destroy-on-close
       >
         <el-form
@@ -509,7 +533,8 @@ function getReviewerName(id: number): string {
           </div>
         </div>
 
-        <el-table :data="scoreDimensions" border style="width: 100%">
+        <!-- 桌面端表格 -->
+        <el-table v-if="!isMobile" :data="scoreDimensions" border style="width: 100%">
           <el-table-column type="index" label="序号" width="60" align="center" />
           <el-table-column prop="name" label="维度名称" min-width="120" />
           <el-table-column prop="description" label="说明" min-width="150">
@@ -521,15 +546,33 @@ function getReviewerName(id: number): string {
           </el-table-column>
           <el-table-column label="操作" width="160" align="center">
             <template #default="{ $index }">
-              <el-button type="primary" link :icon="Edit" @click="openEditDimensionDialog($index)">
-                编辑
-              </el-button>
-              <el-button type="danger" link :icon="Delete" @click="removeDimension($index)">
-                删除
-              </el-button>
+              <el-button type="primary" link :icon="Edit" @click="openEditDimensionDialog($index)">编辑</el-button>
+              <el-button type="danger" link :icon="Delete" @click="removeDimension($index)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
+        <!-- 手机端卡片 -->
+        <div v-else class="item-grid">
+          <div v-for="(dim, index) in scoreDimensions" :key="index" class="item-card">
+            <div class="item-card-header">
+              <span class="item-index">{{ index + 1 }}</span>
+              <span class="item-name">{{ dim.name }}</span>
+              <span class="item-badge">{{ dim.weight }}%</span>
+              <div class="item-actions">
+                <el-button type="primary" link size="small" @click="openEditDimensionDialog(index)">编辑</el-button>
+                <el-button type="danger" link size="small" @click="removeDimension(index)">删除</el-button>
+              </div>
+            </div>
+            <div v-if="dim.description" class="item-detail">
+              <span class="item-label">说明</span>
+              <span class="item-value">{{ dim.description }}</span>
+            </div>
+            <div class="item-detail">
+              <span class="item-label">满分</span>
+              <span class="item-value">{{ dim.maxScore }} 分</span>
+            </div>
+          </div>
+        </div>
 
         <div v-if="scoreDimensions.length === 0" class="empty-tip">
           暂无评分维度，请点击上方按钮添加
@@ -540,7 +583,7 @@ function getReviewerName(id: number): string {
       <el-dialog
         v-model="dimensionDialogVisible"
         :title="editingDimensionIndex === -1 ? '添加评分维度' : '编辑评分维度'"
-        width="500px"
+        :width="isMobile ? '95vw' : '500px'"
         destroy-on-close
       >
         <el-form
@@ -597,7 +640,8 @@ function getReviewerName(id: number): string {
 
         <div class="confirm-block">
           <h4 class="confirm-block-title">被评价人（{{ participants.length }} 人）</h4>
-          <el-table :data="participants" border style="width: 100%">
+          <!-- 桌面端表格 -->
+          <el-table v-if="!isMobile" :data="participants" border style="width: 100%">
             <el-table-column type="index" label="序号" width="60" align="center" />
             <el-table-column prop="name" label="姓名" />
             <el-table-column prop="description" label="说明">
@@ -607,6 +651,23 @@ function getReviewerName(id: number): string {
               <template #default="{ row }">{{ row.phone || '-' }}</template>
             </el-table-column>
           </el-table>
+          <!-- 手机端卡片 -->
+          <div v-else class="item-grid">
+            <div v-for="(p, index) in participants" :key="index" class="item-card">
+              <div class="item-card-header">
+                <span class="item-index">{{ index + 1 }}</span>
+                <span class="item-name">{{ p.name }}</span>
+              </div>
+              <div v-if="p.description" class="item-detail">
+                <span class="item-label">说明</span>
+                <span class="item-value">{{ p.description }}</span>
+              </div>
+              <div v-if="p.phone" class="item-detail">
+                <span class="item-label">联系方式</span>
+                <span class="item-value">{{ p.phone }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="confirm-block">
@@ -624,7 +685,8 @@ function getReviewerName(id: number): string {
 
         <div class="confirm-block">
           <h4 class="confirm-block-title">评分维度（{{ scoreDimensions.length }} 个）</h4>
-          <el-table :data="scoreDimensions" border style="width: 100%">
+          <!-- 桌面端表格 -->
+          <el-table v-if="!isMobile" :data="scoreDimensions" border style="width: 100%">
             <el-table-column prop="name" label="维度名称" />
             <el-table-column prop="description" label="说明">
               <template #default="{ row }">{{ row.description || '-' }}</template>
@@ -634,6 +696,24 @@ function getReviewerName(id: number): string {
               <template #default="{ row }"> {{ row.weight }}% </template>
             </el-table-column>
           </el-table>
+          <!-- 手机端卡片 -->
+          <div v-else class="item-grid">
+            <div v-for="(dim, index) in scoreDimensions" :key="index" class="item-card">
+              <div class="item-card-header">
+                <span class="item-index">{{ index + 1 }}</span>
+                <span class="item-name">{{ dim.name }}</span>
+                <span class="item-badge">{{ dim.weight }}%</span>
+              </div>
+              <div v-if="dim.description" class="item-detail">
+                <span class="item-label">说明</span>
+                <span class="item-value">{{ dim.description }}</span>
+              </div>
+              <div class="item-detail">
+                <span class="item-label">满分</span>
+                <span class="item-value">{{ dim.maxScore }} 分</span>
+              </div>
+            </div>
+          </div>
           <div class="weight-summary" :class="{ 'weight-error': !isWeightValid }">
             权重总和：{{ totalWeight }}%
             <span v-if="!isWeightValid">（必须为 100%）</span>
@@ -706,6 +786,49 @@ function getReviewerName(id: number): string {
 
 .content-card :deep(.el-card__body)::-webkit-scrollbar-thumb:hover {
   background-color: #c0c4cc;
+}
+
+/* 步骤区域 */
+.step-section {
+  max-width: 640px;
+}
+
+/* 基本信息表单 */
+.step1-form :deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #303133;
+  padding-bottom: 4px;
+}
+
+.step1-form :deep(.el-form-item) {
+  margin-bottom: 24px;
+}
+
+.visibility-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.visibility-group :deep(.el-radio) {
+  height: auto;
+  margin-right: 0;
+}
+
+.radio-label {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.4;
+}
+
+.radio-title {
+  font-weight: 500;
+  color: #303133;
+}
+
+.radio-desc {
+  font-size: 12px;
+  color: #909399;
 }
 
 .section-header {
@@ -790,6 +913,77 @@ function getReviewerName(id: number): string {
   color: #f56c6c;
 }
 
+/* 信息卡片网格 */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.item-card {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.item-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.item-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e4e7ed;
+  font-size: 11px;
+  color: #606266;
+  flex-shrink: 0;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.item-badge {
+  margin-left: auto;
+  font-size: 12px;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.item-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.item-detail {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.item-label {
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.item-value {
+  color: #606266;
+  word-break: break-all;
+}
+
 .reviewer-tags {
   display: flex;
   flex-wrap: wrap;
@@ -828,5 +1022,53 @@ function getReviewerName(id: number): string {
   border-top: 1px solid #ebeef5;
   margin-top: auto;
   z-index: 10;
+}
+
+/* ========== 手机端适配 ========== */
+@media (max-width: 767px) {
+  .steps-card :deep(.el-step__title) {
+    font-size: 12px;
+  }
+
+  .steps-card :deep(.el-step__description) {
+    display: none;
+  }
+
+  .content-card :deep(.el-card__body) {
+    padding: 0 12px;
+  }
+
+  .section-header {
+    padding: 12px 0 8px 0;
+    font-size: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 所有表格横向滚动 */
+  :deep(.el-table) {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .action-buttons {
+    padding: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .action-buttons :deep(.el-button) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 确认页面 */
+  .confirm-section {
+    padding: 0 8px;
+  }
+
+  .confirm-block-title {
+    font-size: 14px;
+  }
 }
 </style>

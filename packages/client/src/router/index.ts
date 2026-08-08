@@ -83,7 +83,7 @@ const routes: RouteRecordRaw[] = [
         path: 'notifications',
         name: 'Notifications',
         component: () => import('../views/notifications/Index.vue'),
-        meta: { title: '通知中心' },
+        meta: { title: '通知中心', backTo: '/dashboard' },
       },
       {
         path: 'users',

@@ -601,4 +601,40 @@ onMounted(() => {
   font-weight: 600;
   color: #409eff;
 }
+
+/* ========== 手机端适配 ========== */
+@media (max-width: 767px) {
+  .rate-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .rate-layout {
+    flex-direction: column;
+  }
+
+  .rate-left {
+    overflow: visible;
+  }
+
+  .rating-area {
+    overflow: visible;
+    flex: none;
+  }
+
+  .rate-right {
+    width: 100%;
+    overflow: visible;
+  }
+
+  .summary-card {
+    flex: none;
+  }
+}
 </style>

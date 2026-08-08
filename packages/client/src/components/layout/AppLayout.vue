@@ -19,33 +19,45 @@ import {
   Fold,
   ArrowLeft,
   Bell,
+  Menu,
+  Promotion,
 } from '@element-plus/icons-vue';
 
 // ========== 路由相关 ==========
-const route = useRoute(); // 获取当前路由信息
-const router = useRouter(); // 路由实例，用于编程式导航
+const route = useRoute();
+const router = useRouter();
 
 // ========== 用户状态 ==========
 const userStore = useUserStore();
 
-// 判断当前用户是否是管理员
 const isAdmin = computed(() => {
   const roles = userStore.userInfo?.roles || [];
   return roles.includes('admin');
 });
 
-// ========== 侧边栏折叠 ==========
-// ref 创建响应式变量，控制侧边栏是否折叠
-const isCollapse = ref(false);
+// ========== 响应式判断 ==========
+const isMobile = ref(window.innerWidth < 768);
 
-// ========== 当前激活菜单 ==========
-// computed 计算属性，根据当前路由路径自动更新
-// 当用户访问 /evaluations 时，对应菜单高亮
+function handleResize() {
+  isMobile.value = window.innerWidth < 768;
+  if (!isMobile.value) {
+    drawerVisible.value = false;
+  }
+}
+
+// ========== 侧边栏 ==========
+const isCollapse = ref(false);
+const drawerVisible = ref(false);
 const activeMenu = computed(() => route.path);
 
-// 切换折叠状态
 function toggleCollapse() {
   isCollapse.value = !isCollapse.value;
+}
+
+function handleMenuSelect() {
+  if (isMobile.value) {
+    drawerVisible.value = false;
+  }
 }
 
 // ========== 未读通知数 ==========
@@ -62,12 +74,10 @@ async function fetchUnreadCount() {
   }
 }
 
-// 跳转到通知页面
 function goToNotifications() {
   router.push('/notifications');
 }
 
-// 路由变化时刷新未读数
 router.afterEach(() => {
   fetchUnreadCount();
 });
@@ -75,65 +85,52 @@ router.afterEach(() => {
 // ========== 退出登录 ==========
 async function handleLogout() {
   try {
-    // ElMessageBox.confirm 弹出确认对话框
-    // 返回 Promise，用户点击确定 resolve，点击取消 reject
-    // 设置选项
     await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
       type: 'warning',
       confirmButtonText: '确定',
       cancelButtonText: '取消',
     });
-    // 用户点击确定
     userStore.logout();
     router.push('/login');
   } catch {
-    // 用户点击取消，不做任何操作
+    // 取消
   }
 }
+
 onMounted(() => {
   fetchUnreadCount();
+  window.addEventListener('resize', handleResize);
 });
 </script>
 
 <template>
-  <!-- el-container: 布局容器 -->
   <el-container class="layout-container">
-    <!-- el-aside: 侧边栏，宽度根据折叠状态动态变化 -->
-    <el-aside :width="isCollapse ? '64px' : '200px'" class="aside">
-      <!-- Logo 区域 -->
+    <!-- 桌面端侧边栏 -->
+    <el-aside v-if="!isMobile" :width="isCollapse ? '72px' : '220px'" class="aside">
       <div class="logo">
-        <h1 v-show="!isCollapse">评价系统</h1>
+        <el-icon :size="22" class="logo-icon"><Promotion /></el-icon>
+        <h1 v-show="!isCollapse">点评系统</h1>
       </div>
 
-      <!-- el-menu: 导航菜单 -->
-      <!-- router 属性：点击菜单自动跳转到 index 对应的路由 -->
-      <!-- collapse 属性：控制菜单是否折叠 -->
-      <!-- default-active：当前激活的菜单项，绑定路由路径 -->
       <el-menu :default-active="activeMenu" :collapse="isCollapse" router class="side-menu">
-        <!-- el-menu-item: 菜单项 -->
-        <!-- index: 菜单项标识，router 模式下作为路由路径 -->
         <el-menu-item index="/dashboard">
-          <el-icon><House /></el-icon>
+          <el-icon :size="20"><House /></el-icon>
           <span>工作台</span>
         </el-menu-item>
-
         <el-menu-item index="/evaluations">
-          <el-icon><Document /></el-icon>
+          <el-icon :size="20"><Document /></el-icon>
           <span>评价管理</span>
         </el-menu-item>
-
         <el-menu-item index="/reviews">
-          <el-icon><Document /></el-icon>
+          <el-icon :size="20"><Document /></el-icon>
           <span>审核管理</span>
         </el-menu-item>
-
         <el-menu-item v-if="isAdmin" index="/users">
-          <el-icon><User /></el-icon>
+          <el-icon :size="20"><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
       </el-menu>
 
-      <!-- 底部折叠按钮 -->
       <div class="sidebar-bottom">
         <div class="collapse-btn" @click="toggleCollapse">
           <el-icon :size="18">
@@ -142,17 +139,58 @@ onMounted(() => {
           </el-icon>
           <span v-show="!isCollapse" class="collapse-text">收起</span>
         </div>
+        <!-- <div v-show="!isCollapse" class="version">v1.0</div> -->
       </div>
     </el-aside>
 
+    <!-- 手机端抽屉侧边栏 -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="ltr"
+      :size="260"
+      :show-close="false"
+      class="mobile-drawer"
+    >
+      <template #header>
+        <div class="drawer-title">
+          <el-icon :size="18"><Promotion /></el-icon>
+          <span>评价系统</span>
+        </div>
+      </template>
+      <el-menu :default-active="activeMenu" router class="drawer-menu" @select="handleMenuSelect">
+        <el-menu-item index="/dashboard">
+          <el-icon :size="20"><House /></el-icon>
+          <span>工作台</span>
+        </el-menu-item>
+        <el-menu-item index="/evaluations">
+          <el-icon :size="20"><Document /></el-icon>
+          <span>评价管理</span>
+        </el-menu-item>
+        <el-menu-item index="/reviews">
+          <el-icon :size="20"><Document /></el-icon>
+          <span>审核管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/users">
+          <el-icon :size="20"><User /></el-icon>
+          <span>用户管理</span>
+        </el-menu-item>
+      </el-menu>
+    </el-drawer>
+
     <!-- 右侧内容区 -->
     <el-container>
-      <!-- el-header: 顶栏 -->
       <el-header class="header">
         <div class="header-left">
-          <!-- 返回按钮 -->
+          <el-button v-if="isMobile" :icon="Menu" text @click="drawerVisible = true" />
           <template v-if="route.meta.backTo">
-            <span class="back-link" @click="route.meta.backMode === 'back' ? router.back() : router.push(route.meta.backTo as string)">
+            <span
+              class="back-link"
+              @click="
+                route.meta.backMode === 'back'
+                  ? router.back()
+                  : router.push(route.meta.backTo as string)
+              "
+            >
               <el-icon :size="16"><ArrowLeft /></el-icon>
               <span>返回</span>
             </span>
@@ -162,21 +200,23 @@ onMounted(() => {
         </div>
 
         <div class="header-right">
-          <!-- 通知铃铛 -->
-          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="notification-badge">
+          <el-badge
+            :value="unreadCount"
+            :hidden="unreadCount === 0"
+            :max="99"
+            class="notification-badge"
+          >
             <el-button :icon="Bell" text @click="goToNotifications" />
           </el-badge>
-          <!-- 显示用户名 -->
-          <span class="username">{{
+          <span v-if="!isMobile" class="username">{{
             userStore.userInfo?.realName || userStore.userInfo?.username
           }}</span>
-          <!-- 退出按钮 -->
-          <el-button :icon="SwitchButton" text @click="handleLogout"> 退出 </el-button>
+          <el-button :icon="SwitchButton" text @click="handleLogout">
+            <span v-if="!isMobile">退出</span>
+          </el-button>
         </div>
       </el-header>
 
-      <!-- el-main: 内容区 -->
-      <!-- router-view 渲染子路由对应的组件 -->
       <el-main class="main">
         <router-view />
       </el-main>
@@ -189,55 +229,96 @@ onMounted(() => {
   height: 100vh;
 }
 
-/* 侧边栏样式 */
+/* ========== 侧边栏 ========== */
 .aside {
-  background-color: #304156;
+  background: linear-gradient(180deg, #1a2332 0%, #2d3a4a 100%);
   transition: width 0.3s;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Logo 区域 */
 .logo {
-  height: 60px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.logo-icon {
+  color: #409eff;
 }
 
 .logo h1 {
   font-size: 18px;
-  white-space: nowrap; /* 防止文字换行 */
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 1px;
 }
 
 /* 菜单样式 */
 .side-menu {
   border-right: none;
-  background-color: #304156;
+  background: transparent;
   flex: 1;
+  padding: 8px 0;
 }
 
 .side-menu:not(.el-menu--collapse) {
-  width: 200px;
+  width: 220px;
 }
 
-/* 深度选择器：穿透到子组件修改样式 */
 :deep(.el-menu-item) {
-  color: #bfcbd9;
+  color: #8b9bb4;
+  height: 48px;
+  line-height: 48px;
+  margin: 2px 8px;
+  border-radius: 8px;
+  transition: all 0.25s ease;
 }
 
-:deep(.el-menu-item:hover),
+:deep(.el-menu-item:hover) {
+  background-color: rgba(64, 158, 255, 0.08);
+  color: #c0c8d4;
+}
+
 :deep(.el-menu-item.is-active) {
-  background-color: #263445;
+  background-color: rgba(64, 158, 255, 0.15);
   color: #409eff;
+  position: relative;
+}
+
+:deep(.el-menu-item.is-active::before) {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: #409eff;
+  border-radius: 0 3px 3px 0;
+}
+
+:deep(.el-menu--collapse .el-menu-item) {
+  margin: 2px 8px;
+  border-radius: 8px;
+}
+
+:deep(.el-menu--collapse .el-menu-item.is-active::before) {
+  width: 3px;
+  height: 16px;
 }
 
 /* 侧边栏底部 */
 .sidebar-bottom {
   margin-top: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .collapse-btn {
@@ -246,15 +327,15 @@ onMounted(() => {
   justify-content: center;
   gap: 8px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  color: #bfcbd9;
+  color: #6b7d94;
   transition: all 0.25s ease;
   padding: 0 12px;
 }
 
 .collapse-btn:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.06);
   color: #409eff;
 }
 
@@ -267,7 +348,32 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-/* 顶栏样式 */
+.version {
+  text-align: center;
+  font-size: 11px;
+  color: #4a5a6d;
+  padding: 6px 0 2px;
+}
+
+/* ========== 抽屉 ========== */
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.drawer-title .el-icon {
+  color: #409eff;
+}
+
+.drawer-menu {
+  border-right: none;
+}
+
+/* ========== 顶栏 ========== */
 .header {
   display: flex;
   align-items: center;
@@ -280,6 +386,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
 }
 
 .back-link {
@@ -300,12 +407,16 @@ onMounted(() => {
 .page-title {
   font-size: 16px;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 .username {
@@ -313,13 +424,11 @@ onMounted(() => {
   color: #606266;
 }
 
-/* 内容区样式 */
 .main {
   background-color: #f5f7fa;
   padding: 20px;
 }
 
-/* 通知铃铛 */
 .notification-badge {
   display: flex;
   align-items: center;
@@ -332,5 +441,25 @@ onMounted(() => {
 
 .notification-badge :deep(.el-button:hover) {
   color: #409eff;
+}
+
+/* ========== 手机端适配 ========== */
+@media (max-width: 767px) {
+  .header {
+    padding: 0 12px;
+    height: 50px;
+  }
+
+  .header-left {
+    gap: 8px;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .main {
+    padding: 12px;
+  }
 }
 </style>

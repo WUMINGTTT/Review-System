@@ -3,33 +3,30 @@
  * 用户管理页面（仅管理员可访问）
  *
  * 功能:
- * 1. 用户列表（分页 + 搜索）
+ * 1. 用户列表（分页 + 搜索）— 卡片网格展示
  * 2. 编辑用户角色
  * 3. 启用/禁用用户
  * 4. 删除用户
  */
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, updateUser, updateUserStatus, deleteUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
 
 const userStore = useUserStore();
+const isMobile = computed(() => window.innerWidth < 768);
 
-// 用户列表
 const users = ref<any[]>([]);
 const loading = ref(false);
 
-// 分页
 const pagination = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 12,
   total: 0,
 });
 
-// 搜索关键词
 const keyword = ref('');
 
-// 编辑弹窗
 const editDialogVisible = ref(false);
 const editForm = ref({
   id: 0,
@@ -40,19 +37,16 @@ const editForm = ref({
 });
 const editLoading = ref(false);
 
-// 可选角色
 const roleOptions = [
   { label: '普通用户', value: 'user' },
   { label: '管理员', value: 'admin' },
 ];
 
-// 格式化日期
 function formatDate(date: string | null | undefined) {
   if (!date) return '-';
-  return new Date(date).toLocaleString();
+  return new Date(date).toLocaleDateString();
 }
 
-// 解析 roles（兼容 JSON 字符串和数组）
 function parseRoles(roles: any): string[] {
   if (!roles) return [];
   if (Array.isArray(roles)) return roles;
@@ -63,13 +57,10 @@ function parseRoles(roles: any): string[] {
   }
 }
 
-// 角色标签文本
-function getRoleLabel(roles: any) {
-  const parsed = parseRoles(roles);
-  return parsed.includes('admin') ? '管理员' : '普通用户';
+function isAdminUser(roles: any): boolean {
+  return parseRoles(roles).includes('admin');
 }
 
-// 获取用户列表
 async function fetchUsers() {
   loading.value = true;
   try {
@@ -89,19 +80,16 @@ async function fetchUsers() {
   }
 }
 
-// 搜索
 function handleSearch() {
   pagination.value.page = 1;
   fetchUsers();
 }
 
-// 翻页
 function handlePageChange(page: number) {
   pagination.value.page = page;
   fetchUsers();
 }
 
-// 打开编辑弹窗
 function openEditDialog(user: any) {
   editForm.value = {
     id: user.id,
@@ -113,7 +101,6 @@ function openEditDialog(user: any) {
   editDialogVisible.value = true;
 }
 
-// 保存编辑
 async function handleSaveEdit() {
   editLoading.value = true;
   try {
@@ -134,7 +121,6 @@ async function handleSaveEdit() {
   }
 }
 
-// 切换启用/禁用
 async function handleToggleStatus(user: any) {
   const newStatus = !user.isActive;
   const action = newStatus ? '启用' : '禁用';
@@ -154,7 +140,6 @@ async function handleToggleStatus(user: any) {
   }
 }
 
-// 删除用户
 async function handleDelete(user: any) {
   try {
     await ElMessageBox.confirm(`确定要删除用户"${user.username}"吗？此操作不可恢复。`, '删除确认', {
@@ -195,16 +180,19 @@ onMounted(() => {
       </el-input>
     </div>
 
-    <!-- 用户表格 -->
-    <el-table :data="users" v-loading="loading" border stripe>
+    <!-- 空状态 -->
+    <el-empty v-if="!loading && users.length === 0" description="暂无用户" />
+
+    <!-- 桌面端表格 -->
+    <el-table v-else-if="!isMobile" :data="users" v-loading="loading" border stripe>
       <el-table-column type="index" label="序号" width="60" />
       <el-table-column prop="username" label="用户名" width="120" />
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="email" label="邮箱" min-width="180" />
       <el-table-column label="角色" width="100">
         <template #default="{ row }">
-          <el-tag :type="parseRoles(row.roles).includes('admin') ? 'danger' : 'info'" size="small">
-            {{ getRoleLabel(row.roles) }}
+          <el-tag :type="isAdminUser(row.roles) ? 'danger' : 'info'" size="small">
+            {{ isAdminUser(row.roles) ? '管理员' : '普通用户' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -243,8 +231,72 @@ onMounted(() => {
       </el-table-column>
     </el-table>
 
+    <!-- 手机端卡片网格 -->
+    <div v-else v-loading="loading" class="user-grid">
+      <div v-for="user in users" :key="user.id" class="user-card">
+        <div class="card-header">
+          <div class="user-info">
+            <span class="user-name">{{ user.realName || user.username }}</span>
+            <span class="user-username">@{{ user.username }}</span>
+          </div>
+          <div class="card-tags">
+            <el-tag
+              :type="isAdminUser(user.roles) ? 'danger' : 'info'"
+              size="small"
+              effect="plain"
+            >
+              {{ isAdminUser(user.roles) ? '管理员' : '用户' }}
+            </el-tag>
+            <el-tag
+              :type="user.isActive ? 'success' : 'danger'"
+              size="small"
+              effect="plain"
+            >
+              {{ user.isActive ? '正常' : '禁用' }}
+            </el-tag>
+          </div>
+        </div>
+
+        <div class="card-details">
+          <div class="detail-item" v-if="user.email">
+            <span class="detail-label">邮箱</span>
+            <span class="detail-value">{{ user.email }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">注册</span>
+            <span class="detail-value">{{ formatDate(user.createdAt) }}</span>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <el-button type="primary" link size="small" @click="openEditDialog(user)">
+            编辑
+          </el-button>
+          <el-button
+            :type="user.isActive ? 'warning' : 'success'"
+            link
+            size="small"
+            :disabled="user.id === userStore.userInfo?.id"
+            @click="handleToggleStatus(user)"
+          >
+            {{ user.isActive ? '禁用' : '启用' }}
+          </el-button>
+          <el-button
+            type="danger"
+            link
+            size="small"
+            :disabled="user.id === userStore.userInfo?.id"
+            @click="handleDelete(user)"
+          >
+            删除
+          </el-button>
+        </div>
+      </div>
+    </div>
+
     <!-- 分页 -->
     <el-pagination
+      v-if="pagination.total > pagination.pageSize"
       v-model:current-page="pagination.page"
       :page-size="pagination.pageSize"
       :total="pagination.total"
@@ -254,7 +306,7 @@ onMounted(() => {
     />
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editDialogVisible" title="编辑用户" width="480px">
+    <el-dialog v-model="editDialogVisible" title="编辑用户" :width="isMobile ? '95vw' : '480px'" destroy-on-close>
       <el-form label-width="80px" v-loading="editLoading">
         <el-form-item label="用户名">
           <el-input :model-value="editForm.username" disabled />
@@ -291,5 +343,127 @@ onMounted(() => {
 
 .top-bar {
   margin-bottom: 20px;
+}
+
+/* 用户卡片网格 */
+.user-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.user-card {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 10px;
+  padding: 18px;
+  transition: all 0.2s ease;
+}
+
+.user-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: #d0d5db;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-username {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+
+.card-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: #909399;
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #606266;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 1199px) {
+  .user-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 991px) {
+  .user-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .user-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-bar {
+    margin-bottom: 16px;
+  }
+
+  .top-bar :deep(.el-input) {
+    width: 100% !important;
+  }
 }
 </style>

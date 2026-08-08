@@ -29,6 +29,9 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 
+// 响应式判断
+const isMobile = computed(() => window.innerWidth < 768);
+
 // 评价数据
 const evaluation = ref<any>(null);
 const loading = ref(false);
@@ -368,7 +371,7 @@ onMounted(() => {
         <template #header>
           <span class="section-title">基本信息</span>
         </template>
-        <el-descriptions :column="2" border>
+        <el-descriptions :column="isMobile ? 1 : 2" border>
           <el-descriptions-item label="评价标题">{{ evaluation.title }}</el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="statusMap[evaluation.status]?.type">
@@ -439,16 +442,22 @@ onMounted(() => {
             >被评价人（{{ evaluation.participants?.length || 0 }} 人）</span
           >
         </template>
-        <el-table :data="evaluation.participants" border stripe>
-          <el-table-column type="index" label="序号" width="60" />
-          <el-table-column prop="name" label="姓名" min-width="120" />
-          <el-table-column prop="description" label="说明" min-width="200">
-            <template #default="{ row }">{{ row.description || '-' }}</template>
-          </el-table-column>
-          <el-table-column prop="phone" label="联系方式" width="140">
-            <template #default="{ row }">{{ row.phone || '-' }}</template>
-          </el-table-column>
-        </el-table>
+        <div class="info-grid">
+          <div v-for="(p, index) in evaluation.participants" :key="p.id" class="info-item">
+            <div class="info-item-header">
+              <span class="info-index">{{ index + 1 }}</span>
+              <span class="info-name">{{ p.name }}</span>
+            </div>
+            <div v-if="p.description" class="info-detail">
+              <span class="info-label">说明</span>
+              <span class="info-value">{{ p.description }}</span>
+            </div>
+            <div v-if="p.phone" class="info-detail">
+              <span class="info-label">联系方式</span>
+              <span class="info-value">{{ p.phone }}</span>
+            </div>
+          </div>
+        </div>
       </el-card>
 
       <!-- 评审人 -->
@@ -456,19 +465,18 @@ onMounted(() => {
         <template #header>
           <span class="section-title">评审人（{{ evaluation.reviewers?.length || 0 }} 人）</span>
         </template>
-        <el-table :data="evaluation.reviewers" border stripe>
-          <el-table-column type="index" label="序号" width="60" />
-          <el-table-column label="姓名" min-width="120">
-            <template #default="{ row }">
-              {{ row.reviewer?.realName || row.reviewer?.username }}
-            </template>
-          </el-table-column>
-          <el-table-column label="用户名" min-width="120">
-            <template #default="{ row }">
-              {{ row.reviewer?.username }}
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="info-grid">
+          <div v-for="(r, index) in evaluation.reviewers" :key="r.id" class="info-item">
+            <div class="info-item-header">
+              <span class="info-index">{{ index + 1 }}</span>
+              <span class="info-name">{{ r.reviewer?.realName || r.reviewer?.username }}</span>
+            </div>
+            <div class="info-detail">
+              <span class="info-label">用户名</span>
+              <span class="info-value">{{ r.reviewer?.username }}</span>
+            </div>
+          </div>
+        </div>
       </el-card>
 
       <!-- 评分维度 -->
@@ -478,17 +486,23 @@ onMounted(() => {
             >评分维度（{{ evaluation.scoreDimensions?.length || 0 }} 个）</span
           >
         </template>
-        <el-table :data="evaluation.scoreDimensions" border stripe>
-          <el-table-column type="index" label="序号" width="60" />
-          <el-table-column prop="name" label="维度名称" min-width="120" />
-          <el-table-column prop="description" label="说明" min-width="200">
-            <template #default="{ row }">{{ row.description || '-' }}</template>
-          </el-table-column>
-          <el-table-column prop="maxScore" label="满分" width="80" />
-          <el-table-column label="权重" width="80">
-            <template #default="{ row }"> {{ row.weight }}% </template>
-          </el-table-column>
-        </el-table>
+        <div class="info-grid">
+          <div v-for="(dim, index) in evaluation.scoreDimensions" :key="dim.id" class="info-item">
+            <div class="info-item-header">
+              <span class="info-index">{{ index + 1 }}</span>
+              <span class="info-name">{{ dim.name }}</span>
+              <span class="info-badge">{{ dim.weight }}%</span>
+            </div>
+            <div v-if="dim.description" class="info-detail">
+              <span class="info-label">说明</span>
+              <span class="info-value">{{ dim.description }}</span>
+            </div>
+            <div class="info-detail">
+              <span class="info-label">满分</span>
+              <span class="info-value">{{ dim.maxScore }} 分</span>
+            </div>
+          </div>
+        </div>
       </el-card>
 
       <!-- 评分总览（仅当有评分记录时显示） -->
@@ -496,26 +510,26 @@ onMounted(() => {
         <template #header>
           <span class="section-title">评分总览</span>
         </template>
-        <el-table :data="scoreSummary" border stripe>
-          <el-table-column type="index" label="序号" width="60" />
-          <el-table-column prop="name" label="被评价人" min-width="120" />
-          <el-table-column
-            v-for="dim in evaluation.scoreDimensions"
-            :key="dim.id"
-            :label="`${dim.name}(${dim.weight}%)`"
-            width="120"
-          >
-            <template #default="{ row }">
-              {{ row.scores[dim.id] ?? '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="total" label="加权总分" width="100">
-            <template #default="{ row }">
-              <span class="score-total">{{ row.total }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="comment" label="评语" min-width="160" show-overflow-tooltip />
-        </el-table>
+        <div class="info-grid">
+          <div v-for="item in scoreSummary" :key="item.name" class="score-item">
+            <div class="score-item-header">
+              <span class="info-name">{{ item.name }}</span>
+              <span class="score-total">{{ item.total }}</span>
+            </div>
+            <div class="score-dimensions">
+              <span
+                v-for="dim in evaluation.scoreDimensions"
+                :key="dim.id"
+                class="score-dim"
+              >
+                {{ dim.name }}: {{ item.scores[dim.id] ?? '-' }}
+              </span>
+            </div>
+            <div v-if="item.comment && item.comment !== '-'" class="score-comment">
+              {{ item.comment }}
+            </div>
+          </div>
+        </div>
       </el-card>
     </template>
 
@@ -566,6 +580,7 @@ onMounted(() => {
 .action-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 16px 20px;
   margin-bottom: 20px;
@@ -604,5 +619,140 @@ onMounted(() => {
 .score-total {
   font-weight: 600;
   color: #409eff;
+}
+
+/* 信息卡片网格 */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.info-item {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.info-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.info-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e4e7ed;
+  font-size: 11px;
+  color: #606266;
+  flex-shrink: 0;
+}
+
+.info-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.info-badge {
+  margin-left: auto;
+  font-size: 12px;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.info-detail {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.info-label {
+  color: #909399;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: #606266;
+  word-break: break-all;
+}
+
+/* 评分总览卡片 */
+.score-item {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.score-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.score-dimensions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.score-dim {
+  font-size: 12px;
+  color: #606266;
+  background: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+
+.score-comment {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+/* ========== 手机端适配 ========== */
+@media (max-width: 767px) {
+  .action-bar {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .action-bar :deep(.el-button) {
+    min-width: auto;
+    flex: 1;
+  }
+
+  .section-card :deep(.el-descriptions) {
+    --el-descriptions-item-bordered-label-width: 80px;
+  }
+
+  /* 所有表格横向滚动 */
+  .section-card :deep(.el-table) {
+    display: block;
+    overflow-x: auto;
+  }
+
+  /* 评分总览表格滚动 */
+  .section-card :deep(.el-table__body-wrapper) {
+    overflow-x: auto;
+  }
+
+  /* 弹窗宽度适配 */
+  :deep(.el-dialog) {
+    width: 95vw !important;
+    margin: 10px auto;
+  }
 }
 </style>

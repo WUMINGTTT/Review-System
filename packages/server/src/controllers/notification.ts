@@ -34,7 +34,7 @@ export async function getNotifications(req: Request, res: Response) {
     ]);
 
     res.json({
-      code: 200,
+      success: true,
       data: {
         list: notifications,
         total,
@@ -45,7 +45,7 @@ export async function getNotifications(req: Request, res: Response) {
     });
   } catch (error) {
     console.error('获取通知列表失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '获取通知列表失败' });
   }
 }
 
@@ -68,11 +68,11 @@ export async function markAsRead(req: Request, res: Response) {
     });
 
     if (!notification) {
-      return res.status(404).json({ code: 404, message: '通知不存在' });
+      return res.status(404).json({ success: false, message: '通知不存在' });
     }
 
     if (notification.userId !== userId) {
-      return res.status(403).json({ code: 403, message: '无权操作此通知' });
+      return res.status(403).json({ success: false, message: '无权操作此通知' });
     }
 
     // 标记已读
@@ -81,10 +81,10 @@ export async function markAsRead(req: Request, res: Response) {
       data: { isRead: true },
     });
 
-    res.json({ code: 200, message: '已标记为已读', data: updated });
+    res.json({ success: true, message: '已标记为已读', data: updated });
   } catch (error) {
     console.error('标记已读失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '标记已读失败' });
   }
 }
 
@@ -107,12 +107,12 @@ export async function markAllAsRead(req: Request, res: Response) {
     });
 
     res.json({
-      code: 200,
+      success: true,
       message: '已全部标记为已读',
       data: { count: result.count },
     });
   } catch (error) {
     console.error('标记全部已读失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '标记全部已读失败' });
   }
 }

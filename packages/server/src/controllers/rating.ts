@@ -36,10 +36,10 @@ export const getMyRatings = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ code: 200, data: ratings });
+    res.json({ success: true, data: ratings });
   } catch (error) {
     console.error('获取待评分列表失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '获取待评分列表失败' });
   }
 };
 
@@ -72,18 +72,18 @@ export const getRatingById = async (req: Request, res: Response) => {
     });
 
     if (!rating) {
-      return res.status(404).json({ code: 404, message: '评分项不存在' });
+      return res.status(404).json({ success: false, message: '评分项不存在' });
     }
 
     // 权限检查：只有评分人本人可以查看
     if (rating.reviewerId !== userId) {
-      return res.status(403).json({ code: 403, message: '无权查看此评分项' });
+      return res.status(403).json({ success: false, message: '无权查看此评分项' });
     }
 
-    res.json({ code: 200, data: rating });
+    res.json({ success: true, data: rating });
   } catch (error) {
     console.error('获取评分详情失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '获取评分详情失败' });
   }
 };
 
@@ -111,17 +111,17 @@ export const saveRating = async (req: Request, res: Response) => {
     });
 
     if (!rating) {
-      return res.status(404).json({ code: 404, message: '评分项不存在' });
+      return res.status(404).json({ success: false, message: '评分项不存在' });
     }
 
     // 权限检查：只有评分人本人可以保存
     if (rating.reviewerId !== userId) {
-      return res.status(403).json({ code: 403, message: '无权操作此评分项' });
+      return res.status(403).json({ success: false, message: '无权操作此评分项' });
     }
 
     // 状态检查：已提交的评分不能再修改
     if (rating.status === 'SUBMITTED') {
-      return res.status(400).json({ code: 400, message: '评分已提交，无法修改' });
+      return res.status(400).json({ success: false, message: '评分已提交，无法修改' });
     }
 
     // 验证分数不超过维度满分
@@ -130,11 +130,11 @@ export const saveRating = async (req: Request, res: Response) => {
       for (const item of data.scores) {
         const dimension = dimensions.find((d) => d.id === item.dimensionId);
         if (!dimension) {
-          return res.status(400).json({ code: 400, message: `维度 ${item.dimensionId} 不存在` });
+          return res.status(400).json({ success: false, message: `维度 ${item.dimensionId} 不存在` });
         }
         if (item.score > dimension.maxScore) {
           return res.status(400).json({
-            code: 400,
+            success: false,
             message: `维度 "${dimension.name}" 的分数不能超过 ${dimension.maxScore}`,
           });
         }
@@ -196,10 +196,10 @@ export const saveRating = async (req: Request, res: Response) => {
       include: { dimensionScores: true },
     });
 
-    res.json({ code: 200, message: '保存成功', data: updated });
+    res.json({ success: true, message: '保存成功', data: updated });
   } catch (error) {
     console.error('保存评分失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '保存评分失败' });
   }
 };
 
@@ -226,17 +226,17 @@ export const submitRating = async (req: Request, res: Response) => {
     });
 
     if (!rating) {
-      return res.status(404).json({ code: 404, message: '评分项不存在' });
+      return res.status(404).json({ success: false, message: '评分项不存在' });
     }
 
     // 权限检查
     if (rating.reviewerId !== userId) {
-      return res.status(403).json({ code: 403, message: '无权操作此评分项' });
+      return res.status(403).json({ success: false, message: '无权操作此评分项' });
     }
 
     // 状态检查
     if (rating.status === 'SUBMITTED') {
-      return res.status(400).json({ code: 400, message: '评分已提交，请勿重复提交' });
+      return res.status(400).json({ success: false, message: '评分已提交，请勿重复提交' });
     }
 
     // 验证所有维度都已评分
@@ -246,7 +246,7 @@ export const submitRating = async (req: Request, res: Response) => {
 
     if (missingDimensions.length > 0) {
       return res.status(400).json({
-        code: 400,
+        success: false,
         message: `以下维度未评分：${missingDimensions.map((d) => d.name).join('、')}`,
       });
     }
@@ -256,7 +256,7 @@ export const submitRating = async (req: Request, res: Response) => {
       const dimension = dimensions.find((d) => d.id === item.dimensionId);
       if (dimension && item.score > dimension.maxScore) {
         return res.status(400).json({
-          code: 400,
+          success: false,
           message: `维度 "${dimension.name}" 的分数不能超过 ${dimension.maxScore}`,
         });
       }
@@ -311,10 +311,10 @@ export const submitRating = async (req: Request, res: Response) => {
       include: { dimensionScores: true },
     });
 
-    res.json({ code: 200, message: '提交成功', data: updated });
+    res.json({ success: true, message: '提交成功', data: updated });
   } catch (error) {
     console.error('提交评分失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '提交评分失败' });
   }
 };
 
@@ -345,7 +345,7 @@ export const checkCompletion = async (req: Request, res: Response) => {
     const isComplete = total > 0 && submitted === total;
 
     res.json({
-      code: 200,
+      success: true,
       data: {
         total,
         submitted,
@@ -355,7 +355,7 @@ export const checkCompletion = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('检查完成状态失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '检查完成状态失败' });
   }
 };
 
@@ -383,7 +383,7 @@ export const getRatingsByEvaluationId = async (req: Request, res: Response) => {
     });
 
     if (!evaluation) {
-      return res.status(404).json({ code: 404, message: '评价活动不存在' });
+      return res.status(404).json({ success: false, message: '评价活动不存在' });
     }
 
     // 可见性检查：PRIVATE 的评价只有创建者、审核者和管理员可以查看评分结果
@@ -393,7 +393,7 @@ export const getRatingsByEvaluationId = async (req: Request, res: Response) => {
 
       if (!isCreator && !isReviewer && !isAdmin) {
         return res.status(403).json({
-          code: 403,
+          success: false,
           message: '该评价的评分结果为隐藏状态，仅创建者、审核者和管理员可查看',
         });
       }
@@ -413,9 +413,9 @@ export const getRatingsByEvaluationId = async (req: Request, res: Response) => {
       orderBy: { updatedAt: 'desc' },
     });
 
-    res.json({ code: 200, data: ratings });
+    res.json({ success: true, data: ratings });
   } catch (error) {
     console.error('获取评分结果失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '获取评分结果失败' });
   }
 };

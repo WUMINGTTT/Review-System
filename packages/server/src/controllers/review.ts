@@ -22,10 +22,10 @@ export async function getMyReviews(req: Request, res: Response) {
       },
       orderBy: { submittedAt: 'desc' },
     });
-    res.json({ code: 200, data: reviews });
+    res.json({ success: true, data: reviews });
   } catch (error) {
     console.error('获取待审核列表失败:', error);
-    res.status(500).json({ code: 500, message: '获取待审核列表失败' });
+    res.status(500).json({ success: false, message: '获取待审核列表失败' });
   }
 }
 
@@ -49,18 +49,18 @@ export async function approveReview(req: Request, res: Response) {
     });
 
     if (!evaluation) {
-      return res.status(404).json({ code: 404, message: '评价活动不存在' });
+      return res.status(404).json({ success: false, message: '评价活动不存在' });
     }
 
     // 2. 检查状态是否为 SUBMITTED
     if (evaluation.status !== 'SUBMITTED') {
-      return res.status(400).json({ code: 400, message: '只有已提交的评价可以审核' });
+      return res.status(400).json({ success: false, message: '只有已提交的评价可以审核' });
     }
 
     // 3. 检查当前用户是否是审核者
     const isReviewer = evaluation.reviewers.some((r) => r.reviewerId === userId);
     if (!isReviewer) {
-      return res.status(403).json({ code: 403, message: '您不是该评价的审核者' });
+      return res.status(403).json({ success: false, message: '您不是该评价的审核者' });
     }
 
     // 4. 更新状态为 APPROVED，清空驳回原因
@@ -81,10 +81,10 @@ export async function approveReview(req: Request, res: Response) {
       evaluation.id                   // relatedId
     );
 
-    res.json({ code: 200, message: '已通过', data: updated });
+    res.json({ success: true, message: '已通过', data: updated });
   } catch (error) {
     console.error('审核通过失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '审核通过失败' });
   }
 }
 
@@ -98,7 +98,7 @@ export async function rejectReview(req: Request, res: Response) {
     const { rejectReason } = rejectSchema.parse(req.body); // 获取审核驳回原因
 
     if (!rejectReason) {
-      return res.status(400).json({ code: 400, message: '请填写驳回原因' });
+      return res.status(400).json({ success: false, message: '请填写驳回原因' });
     }
 
     const evaluation = await prisma.evaluation.findUnique({
@@ -107,16 +107,16 @@ export async function rejectReview(req: Request, res: Response) {
     });
 
     if (!evaluation) {
-      return res.status(404).json({ code: 404, message: '评价活动不存在' });
+      return res.status(404).json({ success: false, message: '评价活动不存在' });
     }
 
     if (evaluation.status !== 'SUBMITTED') {
-      return res.status(400).json({ code: 400, message: '只有已提交的评价可以审核' });
+      return res.status(400).json({ success: false, message: '只有已提交的评价可以审核' });
     }
     // 3. 检查当前用户是否是审核者
     const isReviewer = evaluation.reviewers.some((r) => r.reviewerId === userId);
     if (!isReviewer) {
-      return res.status(403).json({ code: 403, message: '您不是该评价的审核者' });
+      return res.status(403).json({ success: false, message: '您不是该评价的审核者' });
     }
 
     const updated = await prisma.evaluation.update({
@@ -136,9 +136,9 @@ export async function rejectReview(req: Request, res: Response) {
       evaluation.id                   // relatedId
     );
 
-    res.json({ code: 200, message: '已驳回', data: updated });
+    res.json({ success: true, message: '已驳回', data: updated });
   } catch (error) {
     console.error('审核驳回失败:', error);
-    res.status(500).json({ code: 500, message: '服务器内部错误' });
+    res.status(500).json({ success: false, message: '审核驳回失败' });
   }
 }

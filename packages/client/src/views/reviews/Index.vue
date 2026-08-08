@@ -4,24 +4,18 @@
  *
  * 功能:
  * 1. 展示当前用户作为评审人需要审核的评价列表
- * 2. 支持审核通过和打回操作
- * 3. 打回需要填写原因
+ * 2. 点击详情跳转评价详情页进行审核操作
  */
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { getMyReviews, approveReview, rejectReview } from '@/api/review';
+import { ElMessage } from 'element-plus';
+import { getMyReviews } from '@/api/review';
 
 const router = useRouter();
 
 // 审核列表
 const reviews = ref<any[]>([]);
 const loading = ref(false);
-
-// 打回弹窗
-const rejectDialogVisible = ref(false);
-const rejectReason = ref('');
-const rejectingId = ref<number | null>(null);
 
 // 格式化日期
 function formatDate(date: string | null | undefined) {
@@ -34,8 +28,7 @@ async function fetchReviews() {
   loading.value = true;
   try {
     const res = await getMyReviews();
-    // 兼容后端返回 { code: 200, data } 格式
-    if (res.code === 200) {
+    if (res.success) {
       reviews.value = res.data;
     }
   } catch (error) {
@@ -43,47 +36,6 @@ async function fetchReviews() {
     ElMessage.error('获取待审核列表失败');
   } finally {
     loading.value = false;
-  }
-}
-
-// 审核通过
-async function handleApprove(id: number, title: string) {
-  try {
-    await ElMessageBox.confirm(`确定要通过评价"${title}"吗？`, '审核确认', { type: 'success' });
-    const res = await approveReview(id);
-    if (res.code === 200) {
-      ElMessage.success('审核通过');
-      fetchReviews();
-    }
-  } catch {
-    // 取消
-  }
-}
-
-// 打开打回弹窗
-function openRejectDialog(id: number) {
-  rejectingId.value = id;
-  rejectReason.value = '';
-  rejectDialogVisible.value = true;
-}
-
-// 确认打回
-async function handleReject() {
-  if (!rejectReason.value.trim()) {
-    ElMessage.warning('请填写打回原因');
-    return;
-  }
-  if (!rejectingId.value) return;
-
-  try {
-    const res = await rejectReview(rejectingId.value, rejectReason.value.trim());
-    if (res.code === 200) {
-      ElMessage.success('已打回');
-      rejectDialogVisible.value = false;
-      fetchReviews();
-    }
-  } catch (error) {
-    console.error('打回失败:', error);
   }
 }
 
@@ -134,24 +86,6 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
-
-    <!-- 打回弹窗 -->
-    <el-dialog v-model="rejectDialogVisible" title="打回评价" width="480px">
-      <el-form label-width="80px">
-        <el-form-item label="打回原因" required>
-          <el-input
-            v-model="rejectReason"
-            type="textarea"
-            :rows="4"
-            placeholder="请填写打回原因，以便组织者了解需要修改的内容"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="warning" @click="handleReject">确认打回</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 

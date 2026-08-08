@@ -146,6 +146,9 @@ export async function getEvaluations(req: Request, res: Response) {
     const status = req.query.status as string | undefined;
     const myOnly = req.query.myOnly === 'true';
 
+    const userId = req.user!.id;
+    const isAdmin = req.user!.roles.includes('admin');
+
     // 构建筛选条件
     const where: any = {};
 
@@ -156,12 +159,20 @@ export async function getEvaluations(req: Request, res: Response) {
 
     // 只显示我创建的评价
     if (myOnly) {
-      where.createdBy = req.user!.id;
+      where.createdBy = userId;
     }
 
     // 关键词搜索
     if (keyword) {
       where.OR = [{ title: { contains: keyword } }, { description: { contains: keyword } }];
+    }
+
+    // 可见性过滤（评价管理页面）：
+    // - 评价管理页面仅展示创建者自己的评价
+    // - 审核者通过审核管理页面查看待审核的评价
+    // - 管理员始终可见所有评价
+    if (!isAdmin) {
+      where.createdBy = userId;
     }
 
     // 并行查询列表和总数
@@ -216,6 +227,8 @@ export async function getEvaluations(req: Request, res: Response) {
 export async function getEvaluationById(req: Request, res: Response) {
   try {
     const id = Number(req.params.id);
+    const userId = req.user!.id;
+    const isAdmin = req.user!.roles.includes('admin');
 
     const evaluation = await prisma.evaluation.findUnique({
       where: { id },
@@ -258,6 +271,28 @@ export async function getEvaluationById(req: Request, res: Response) {
         success: false,
         message: '评价不存在',
       });
+    }
+
+    // 可见性检查（管理员始终可见）
+    if (!isAdmin) {
+      const isCreator = evaluation.createdBy === userId;
+      const isReviewer = evaluation.reviewers.some((r) => r.reviewerId === userId);
+
+      // DRAFT / REJECTED / APPROVED / ARCHIVED: 仅创建者可见
+      if (evaluation.status !== 'SUBMITTED' && !isCreator) {
+        return res.status(404).json({
+          success: false,
+          message: '评价不存在',
+        });
+      }
+
+      // SUBMITTED: 创建者 + 评审人可见
+      if (evaluation.status === 'SUBMITTED' && !isCreator && !isReviewer) {
+        return res.status(404).json({
+          success: false,
+          message: '评价不存在',
+        });
+      }
     }
 
     res.json({ success: true, data: evaluation });
@@ -418,16 +453,27 @@ export async function deleteEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 状态检查：只有草稿状态可以删除
-    if (evaluation.status !== 'DRAFT') {
+    // 状态检查：草稿、已通过、已归档状态可以删除
+    if (evaluation.status !== 'DRAFT' && evaluation.status !== 'APPROVED' && evaluation.status !== 'ARCHIVED') {
       return res.status(400).json({
         success: false,
-        message: '只有草稿状态的评价可以删除',
+        message: '只有草稿、已通过或已归档状态的评价可以删除',
       });
     }
 
-    // 删除评价（级联删除会自动删除关联的被评价人、评审人、评分维度）
-    await prisma.evaluation.delete({ where: { id } });
+    // 使用事务：先删评分相关记录（因RatingItem未设置级联删除），再删评价
+    await prisma.$transaction(async (tx) => {
+      // 删除维度评分记录（通过 ratingItem 关联）
+      await tx.dimensionScore.deleteMany({
+        where: { ratingItem: { evaluationId: id } },
+      });
+      // 删除评分记录
+      await tx.ratingItem.deleteMany({
+        where: { evaluationId: id },
+      });
+      // 删除评价（级联删除被评价人、评审人、评分维度）
+      await tx.evaluation.delete({ where: { id } });
+    });
 
     res.json({
       success: true,
@@ -473,12 +519,14 @@ export async function submitEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 更新状态为已提交
+    // 驳回后重新提交：清除 rejectReason 和 modifiedAt
     const updated = await prisma.evaluation.update({
       where: { id },
       data: {
         status: 'SUBMITTED',
         submittedAt: new Date(),
+        rejectReason: null,
+        modifiedAt: null,
       },
     });
 
@@ -547,12 +595,13 @@ export async function approveEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 更新状态为已通过
+    // 更新状态为已通过，清除 modifiedAt
     const updated = await prisma.evaluation.update({
       where: { id },
       data: {
         status: 'APPROVED',
         reviewedAt: new Date(),
+        modifiedAt: null,
       },
     });
 
@@ -616,13 +665,14 @@ export async function rejectEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 更新状态为已打回
+    // 打回时清除 modifiedAt，确保新一轮驳回需要重新修改
     const updated = await prisma.evaluation.update({
       where: { id },
       data: {
         status: 'REJECTED',
         rejectReason: validationResult.data.rejectReason,
         reviewedAt: new Date(),
+        modifiedAt: null,
       },
     });
 
@@ -762,11 +812,11 @@ export async function submitRatings(req: Request, res: Response) {
       });
     }
 
-    // 状态检查：只有草稿状态可以评分
-    if (evaluation.status !== 'DRAFT') {
+    // 状态检查：草稿或已驳回状态可以评分
+    if (evaluation.status !== 'DRAFT' && evaluation.status !== 'REJECTED') {
       return res.status(400).json({
         success: false,
-        message: '只有草稿状态的评价可以评分',
+        message: '只有草稿或已驳回状态的评价可以评分',
       });
     }
 
@@ -796,18 +846,23 @@ export async function submitRatings(req: Request, res: Response) {
         },
       });
 
-      // 为每个被评价人创建评分记录
+      // 为传入的被评价人创建评分记录
       for (const rating of ratings) {
         const participant = evaluation.participants.find((p) => p.id === rating.participantId);
         if (!participant) continue;
 
-        // 创建 RatingItem
+        // 判断该被评价人的评分是否完整（所有维度都有分数）
+        const allDimensionsScored = evaluation.scoreDimensions.every((d) =>
+          rating.scores.some((s) => s.dimensionId === d.id && s.score > 0 && s.score <= d.maxScore)
+        );
+
+        // 创建 RatingItem，完整的设为 SUBMITTED，不完整的设为 DRAFT
         const ratingItem = await tx.ratingItem.create({
           data: {
             evaluationId: id,
             participantId: rating.participantId,
             reviewerId: req.user!.id,
-            status: 'SUBMITTED',
+            status: allDimensionsScored ? 'SUBMITTED' : 'DRAFT',
             comment: rating.comment,
           },
         });
@@ -837,6 +892,14 @@ export async function submitRatings(req: Request, res: Response) {
             },
           });
         }
+      }
+
+      // 如果是已驳回状态下的修改评分，更新 modifiedAt
+      if (evaluation.status === 'REJECTED') {
+        await tx.evaluation.update({
+          where: { id },
+          data: { modifiedAt: new Date() },
+        });
       }
     });
 

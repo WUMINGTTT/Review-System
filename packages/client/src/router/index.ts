@@ -11,8 +11,7 @@
  *   /               - 主布局（需要登录）
  *     /dashboard    - 工作台
  *     /evaluations  - 评价列表
- *     /ratings      - 我的评分
- *     /review       - 审核管理
+ *     /reviews      - 审核管理
  *     /archive      - 已归档
  *     /users        - 用户管理（仅管理员）
  *     /profile      - 个人中心
@@ -54,13 +53,13 @@ const routes: RouteRecordRaw[] = [
         path: 'evaluations',
         name: 'Evaluations',
         component: () => import('../views/evaluations/Index.vue'),
-        meta: { title: '评价活动' },
+        meta: { title: '评价管理' },
       },
       {
         path: 'evaluations/create',
         name: 'EvaluationCreate',
         component: () => import('../views/evaluations/Create.vue'),
-        meta: { title: '创建评价' },
+        meta: { title: '创建评价', backTo: '/evaluations' },
       },
       {
         path: 'evaluations/:id',
@@ -72,19 +71,7 @@ const routes: RouteRecordRaw[] = [
         path: 'evaluations/:id/rate',
         name: 'EvaluationRate',
         component: () => import('../views/evaluations/Rate.vue'),
-        meta: { title: '评分', backTo: '/evaluations', backMode: 'back' },
-      },
-      {
-        path: 'ratings',
-        name: 'Ratings',
-        component: () => import('../views/ratings/Index.vue'),
-        meta: { title: '我的评分' },
-      },
-      {
-        path: 'ratings/:id',
-        name: 'RatingForm',
-        component: () => import('../views/ratings/Form.vue'),
-        meta: { title: '评分' },
+        meta: { title: '评分', backTo: '/evaluations' },
       },
       {
         path: 'reviews',
@@ -96,7 +83,7 @@ const routes: RouteRecordRaw[] = [
         path: 'users',
         name: 'Users',
         component: () => import('../views/users/Index.vue'),
-        meta: { title: '用户管理', roles: ['ADMIN'] },
+        meta: { title: '用户管理', roles: ['admin'] },
       },
     ],
   },
@@ -121,8 +108,7 @@ const router = createRouter({
  * 1. 检查用户是否已登录（Token 是否存在）
  * 2. 未登录用户重定向到登录页
  * 3. 已登录用户访问登录页时重定向到首页
- *
- * TODO: 后续在此处添加角色权限校验逻辑
+ * 4. 检查路由的 meta.roles，无权限用户重定向到工作台
  */
 router.beforeEach(async (to, _from, next) => {
   // 从 localStorage 获取 Token
@@ -154,6 +140,19 @@ router.beforeEach(async (to, _from, next) => {
           return
         }
       }
+
+      // 检查路由是否需要特定角色
+      const requiredRoles = to.meta.roles as string[] | undefined
+      if (requiredRoles && requiredRoles.length > 0) {
+        const userRoles = userStore.userInfo?.roles || []
+        const hasRole = requiredRoles.some((role) => userRoles.includes(role))
+        if (!hasRole) {
+          // 无权限，重定向到工作台
+          next({ name: 'Dashboard' })
+          return
+        }
+      }
+
       next()
     } else {
       next({ name: 'Login' })

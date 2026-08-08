@@ -20,7 +20,7 @@ defineProps<{
 </script>
 
 <template>
-  <el-card class="stat-card" shadow="hover">
+  <el-card class="stat-card" shadow="hover" @click="$emit('click')">
     <div class="stat-content">
       <div class="stat-info">
         <div class="stat-title">{{ title }}</div>

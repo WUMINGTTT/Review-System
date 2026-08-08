@@ -51,21 +51,16 @@ onMounted(() => {
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stat-row">
       <el-col :xs="12" :sm="6">
-        <StatCard
-          title="我的草稿"
-          :value="stats.draftCount"
-          :icon="Document"
-          color="#409eff"
-        />
+        <StatCard title="我的草稿" :value="stats.draftCount" :icon="Document" color="#409eff" @click="router.push('/evaluations?status=DRAFT')" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <StatCard title="待审核" :value="stats.pendingCount" :icon="Check" color="#e6a23c" />
+        <StatCard title="待审核" :value="stats.pendingCount" :icon="Check" color="#e6a23c" @click="router.push('/reviews')" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <StatCard title="已通过" :value="stats.approvedCount" :icon="Folder" color="#67c23a" />
+        <StatCard title="已通过" :value="stats.approvedCount" :icon="Folder" color="#67c23a" @click="router.push('/evaluations?status=APPROVED')" />
       </el-col>
       <el-col :xs="12" :sm="6">
-        <StatCard title="已归档" :value="stats.archivedCount" :icon="Folder" color="#909399" />
+        <StatCard title="已归档" :value="stats.archivedCount" :icon="Folder" color="#909399" @click="router.push('/evaluations?status=ARCHIVED')" />
       </el-col>
     </el-row>
 
@@ -76,8 +71,7 @@ onMounted(() => {
       </template>
       <el-space wrap>
         <el-button type="primary" @click="router.push('/evaluations/create')"> 创建评价 </el-button>
-        <el-button @click="router.push('/evaluations')"> 查看评价 </el-button>
-        <el-button @click="router.push('/ratings')"> 我的评分 </el-button>
+        <el-button @click="router.push('/evaluations')"> 评价管理 </el-button>
         <el-button @click="router.push('/reviews')"> 审核管理 </el-button>
       </el-space>
     </el-card>

@@ -8,97 +8,97 @@
  * 3. 启用/禁用用户
  * 4. 删除用户
  */
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUsers, updateUser, updateUserStatus, deleteUser } from '@/api/user'
-import { useUserStore } from '@/stores/user'
+import { ref, onMounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getUsers, updateUser, updateUserStatus, deleteUser } from '@/api/user';
+import { useUserStore } from '@/stores/user';
 
-const userStore = useUserStore()
+const userStore = useUserStore();
 
 // 用户列表
-const users = ref<any[]>([])
-const loading = ref(false)
+const users = ref<any[]>([]);
+const loading = ref(false);
 
 // 分页
 const pagination = ref({
   page: 1,
   pageSize: 10,
   total: 0,
-})
+});
 
 // 搜索关键词
-const keyword = ref('')
+const keyword = ref('');
 
 // 编辑弹窗
-const editDialogVisible = ref(false)
+const editDialogVisible = ref(false);
 const editForm = ref({
   id: 0,
   username: '',
   realName: '',
   email: '',
   roles: [] as string[],
-})
-const editLoading = ref(false)
+});
+const editLoading = ref(false);
 
 // 可选角色
 const roleOptions = [
   { label: '普通用户', value: 'user' },
   { label: '管理员', value: 'admin' },
-]
+];
 
 // 格式化日期
 function formatDate(date: string | null | undefined) {
-  if (!date) return '-'
-  return new Date(date).toLocaleString()
+  if (!date) return '-';
+  return new Date(date).toLocaleString();
 }
 
 // 解析 roles（兼容 JSON 字符串和数组）
 function parseRoles(roles: any): string[] {
-  if (!roles) return []
-  if (Array.isArray(roles)) return roles
+  if (!roles) return [];
+  if (Array.isArray(roles)) return roles;
   try {
-    return JSON.parse(roles)
+    return JSON.parse(roles);
   } catch {
-    return []
+    return [];
   }
 }
 
 // 角色标签文本
 function getRoleLabel(roles: any) {
-  const parsed = parseRoles(roles)
-  return parsed.includes('admin') ? '管理员' : '普通用户'
+  const parsed = parseRoles(roles);
+  return parsed.includes('admin') ? '管理员' : '普通用户';
 }
 
 // 获取用户列表
 async function fetchUsers() {
-  loading.value = true
+  loading.value = true;
   try {
     const res = await getUsers({
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
       keyword: keyword.value || undefined,
-    })
+    });
     if (res.success) {
-      users.value = res.data.list
-      pagination.value.total = res.data.total
+      users.value = res.data.list;
+      pagination.value.total = res.data.total;
     }
   } catch (error) {
-    console.error('获取用户列表失败:', error)
+    console.error('获取用户列表失败:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 // 搜索
 function handleSearch() {
-  pagination.value.page = 1
-  fetchUsers()
+  pagination.value.page = 1;
+  fetchUsers();
 }
 
 // 翻页
 function handlePageChange(page: number) {
-  pagination.value.page = page
-  fetchUsers()
+  pagination.value.page = page;
+  fetchUsers();
 }
 
 // 打开编辑弹窗
@@ -109,43 +109,45 @@ function openEditDialog(user: any) {
     realName: user.realName || '',
     email: user.email || '',
     roles: parseRoles(user.roles),
-  }
-  editDialogVisible.value = true
+  };
+  editDialogVisible.value = true;
 }
 
 // 保存编辑
 async function handleSaveEdit() {
-  editLoading.value = true
+  editLoading.value = true;
   try {
     const res = await updateUser(editForm.value.id, {
       realName: editForm.value.realName,
       email: editForm.value.email,
       roles: editForm.value.roles,
-    })
+    });
     if (res.success) {
-      ElMessage.success('更新成功')
-      editDialogVisible.value = false
-      fetchUsers()
+      ElMessage.success('更新成功');
+      editDialogVisible.value = false;
+      fetchUsers();
     }
   } catch (error) {
-    console.error('更新用户失败:', error)
+    console.error('更新用户失败:', error);
   } finally {
-    editLoading.value = false
+    editLoading.value = false;
   }
 }
 
 // 切换启用/禁用
 async function handleToggleStatus(user: any) {
-  const newStatus = !user.isActive
-  const action = newStatus ? '启用' : '禁用'
+  const newStatus = !user.isActive;
+  const action = newStatus ? '启用' : '禁用';
   try {
     await ElMessageBox.confirm(`确定要${action}用户"${user.username}"吗？`, `${action}确认`, {
       type: 'warning',
-    })
-    const res = await updateUserStatus(user.id, newStatus)
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+    });
+    const res = await updateUserStatus(user.id, newStatus);
     if (res.success) {
-      ElMessage.success(`${action}成功`)
-      fetchUsers()
+      ElMessage.success(`${action}成功`);
+      fetchUsers();
     }
   } catch {
     // 取消
@@ -155,15 +157,15 @@ async function handleToggleStatus(user: any) {
 // 删除用户
 async function handleDelete(user: any) {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除用户"${user.username}"吗？此操作不可恢复。`,
-      '删除确认',
-      { type: 'error' }
-    )
-    const res = await deleteUser(user.id)
+    await ElMessageBox.confirm(`确定要删除用户"${user.username}"吗？此操作不可恢复。`, '删除确认', {
+      type: 'error',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+    });
+    const res = await deleteUser(user.id);
     if (res.success) {
-      ElMessage.success('删除成功')
-      fetchUsers()
+      ElMessage.success('删除成功');
+      fetchUsers();
     }
   } catch {
     // 取消
@@ -171,8 +173,8 @@ async function handleDelete(user: any) {
 }
 
 onMounted(() => {
-  fetchUsers()
-})
+  fetchUsers();
+});
 </script>
 
 <template>
@@ -224,6 +226,7 @@ onMounted(() => {
           <el-button
             :type="row.isActive ? 'warning' : 'success'"
             link
+            :disabled="row.id === userStore.userInfo?.id"
             @click="handleToggleStatus(row)"
           >
             {{ row.isActive ? '禁用' : '启用' }}

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'; // Express 的请求和响应类型
 import { verifyToken } from '../utils/jwt'; // 导入 JWT 验证函数
 import { JwtPayload } from '@shared/types/api'; // 导入 JwtPayload 类型
+import { prisma } from '../app'; // 导入 prisma 实例
 
 // 扩展 Express 的 Request 类型，让 req.user 有类型提示
 declare global {
@@ -14,7 +15,7 @@ declare global {
 /**
  * 中间件函数，用于验证 JWT 并将用户信息附加到请求对象上
  */
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   // 从请求头中获取 Authorization 字段
   const authHeader = req.headers.authorization;
   // 如果没有提供 Authorization 字段，返回 401 未授权
@@ -32,6 +33,25 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
       message: '无效的授权信息',
     });
   }
+
+  // 检查用户是否被禁用
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { isActive: true },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: '账号已被禁用，请联系管理员',
+      });
+    }
+  } catch (error) {
+    // 数据库查询失败时不阻塞请求，继续处理
+    console.error('检查用户状态失败:', error);
+  }
+
   // 将解码后的用户信息附加到请求对象上
   req.user = payload;
   next(); // 调用 next() 以继续处理请求

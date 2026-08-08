@@ -64,25 +64,53 @@ const isReviewer = computed(() => {
 const hasActions = computed(() => {
   if (!evaluation.value) return false;
   const status = evaluation.value.status;
-  // 创建者在 DRAFT/REJECTED 状态有操作
-  if (isCreator.value && (status === 'DRAFT' || status === 'REJECTED')) return true;
-  // 评审人在 SUBMITTED/APPROVED 状态有操作
+  // 创建者：DRAFT/REJECTED（评分+提交），APPROVED/ARCHIVED（删除），SUBMITTED 无操作
+  if (isCreator.value && (status === 'DRAFT' || status === 'REJECTED' || status === 'APPROVED' || status === 'ARCHIVED')) return true;
+  // 审核者：SUBMITTED（通过+打回），APPROVED（归档）
   if (isReviewer.value && (status === 'SUBMITTED' || status === 'APPROVED')) return true;
-  // 管理员在 APPROVED 状态有归档操作
+  // 管理员（非审核者）：APPROVED（归档）
   if (isAdmin.value && status === 'APPROVED' && !isReviewer.value) return true;
   return false;
 });
 
-// 判断是否已为所有被评价人评分
+// 当前用户是否已有评分记录
+const hasAnyRatings = computed(() => {
+  if (!evaluation.value) return false;
+  const ratingItems = evaluation.value.ratingItems || [];
+  return ratingItems.some((r: any) => r.reviewerId === currentUserId.value);
+});
+
+// 当前用户已完成的评分数量（所有维度都有 >0 分数的被评价人数）
+const completedCount = computed(() => {
+  if (!evaluation.value) return 0;
+  const participants = evaluation.value.participants || [];
+  const ratingItems = evaluation.value.ratingItems || [];
+  const dimensions = evaluation.value.scoreDimensions || [];
+  if (dimensions.length === 0) return 0;
+  const myRatings = ratingItems.filter((r: any) => r.reviewerId === currentUserId.value);
+  return participants.filter((p: any) => {
+    const rating = myRatings.find((r: any) => r.participantId === p.id);
+    if (!rating) return false;
+    return dimensions.every((d: any) => {
+      const score = rating.dimensionScores?.find((ds: any) => ds.dimensionId === d.id)?.score;
+      return score !== undefined && score > 0;
+    });
+  }).length;
+});
+
+// 判断是否已为所有被评价人评分（且每个被评人的所有维度都评分完成）
 const isAllRated = computed(() => {
   if (!evaluation.value) return false;
   const participants = evaluation.value.participants || [];
-  const ratingItems = evaluation.value.ratingItems || [];
-  if (participants.length === 0) return false;
-  // 当前用户（创建者）的评分记录
-  const myRatings = ratingItems.filter((r: any) => r.reviewerId === currentUserId.value);
-  // 每个被评价人都需要有对应的评分记录
-  return participants.every((p: any) => myRatings.some((r: any) => r.participantId === p.id));
+  return completedCount.value === participants.length && participants.length > 0;
+});
+
+// 评分按钮文案
+const rateButtonText = computed(() => {
+  if (evaluation.value?.status === 'REJECTED') return '修改评分';
+  if (!hasAnyRatings.value) return '开始评分';
+  if (!isAllRated.value) return '继续评分';
+  return '修改评分';
 });
 
 // 评分总览数据：每个被评价人的各维度分数和加权总分
@@ -160,8 +188,10 @@ async function fetchDetail() {
 // 提交评价
 async function handleSubmit() {
   try {
-    await ElMessageBox.confirm('确定要提交此评价吗？提交后将进入审核流程。', '提交确认', {
-      type: 'info',
+    await ElMessageBox.confirm('确认提交此评价吗？提交后将进入审核流程。', '提交确认', {
+      type: 'warning',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
     });
     const res = await submitEvaluation(evaluationId.value);
     if (res.success) {
@@ -176,13 +206,16 @@ async function handleSubmit() {
 // 审核通过
 async function handleApprove() {
   try {
-    await ElMessageBox.confirm('确定要审核通过此评价吗？', '审核确认', {
+    await ElMessageBox.confirm('确认过审此评价吗？', '审核确认', {
       type: 'success',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
     });
     const res = await approveEvaluation(evaluationId.value);
     if (res.success) {
       ElMessage.success('审核通过');
-      fetchDetail();
+      // 审核通过后返回审核管理页面（APPROVED 状态仅创建者可见）
+      router.push('/reviews');
     }
   } catch {
     // 取消
@@ -206,7 +239,8 @@ async function handleReject() {
     if (res.success) {
       ElMessage.success('已打回');
       rejectDialogVisible.value = false;
-      fetchDetail();
+      // 打回后返回审核管理页面（REJECTED 状态仅创建者可见）
+      router.push('/reviews');
     }
   } catch (error) {
     console.error('打回失败:', error);
@@ -218,6 +252,8 @@ async function handleArchive() {
   try {
     await ElMessageBox.confirm('确定要归档此评价吗？归档后数据将变为只读。', '归档确认', {
       type: 'warning',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
     });
     const res = await archiveEvaluation(evaluationId.value);
     if (res.success) {
@@ -262,33 +298,9 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 操作栏（独立卡片式） -->
+    <!-- 操作栏 -->
     <div v-if="evaluation && hasActions" class="action-bar">
-      <!-- 创建者操作 -->
-      <template v-if="isCreator">
-        <el-button
-          v-if="evaluation.status === 'DRAFT'"
-          type="warning"
-          @click="router.push(`/evaluations/${evaluationId}/rate`)"
-        >
-          {{ isAllRated ? '重新评分' : '开始评分' }}
-        </el-button>
-        <el-tooltip
-          v-if="evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED'"
-          :disabled="isAllRated"
-          content="请先完成所有被评价人的评分"
-          placement="top"
-        >
-          <el-button type="success" :disabled="!isAllRated" @click="handleSubmit">
-            提交审核
-          </el-button>
-        </el-tooltip>
-        <el-button v-if="evaluation.status === 'DRAFT'" type="danger" plain @click="handleDelete">
-          删除
-        </el-button>
-      </template>
-
-      <!-- 评审人操作 -->
+      <!-- 审核者操作：SUBMITTED 可通过/打回，APPROVED 可归档 -->
       <template v-if="isReviewer">
         <el-button v-if="evaluation.status === 'SUBMITTED'" type="success" @click="handleApprove">
           审核通过
@@ -306,15 +318,48 @@ onMounted(() => {
         </el-button>
       </template>
 
-      <!-- 管理员归档 -->
+      <!-- 管理员（非审核者）操作：APPROVED 可归档 -->
       <el-button
-        v-if="isAdmin && evaluation.status === 'APPROVED' && !isReviewer"
+        v-if="isAdmin && !isReviewer && evaluation.status === 'APPROVED'"
         type="info"
         plain
         @click="handleArchive"
       >
         归档
       </el-button>
+
+      <!-- 创建者操作：DRAFT/REJECTED 可评分+提交，DRAFT/APPROVED/ARCHIVED 可删除 -->
+      <template v-if="isCreator">
+        <el-button
+          v-if="evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED'"
+          type="warning"
+          @click="router.push(`/evaluations/${evaluationId}/rate`)"
+        >
+          {{ rateButtonText }}
+        </el-button>
+        <el-tooltip
+          v-if="evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED'"
+          :disabled="isAllRated"
+          content="请先完成所有被评价人的评分"
+          placement="top"
+        >
+          <el-button type="success" :disabled="!isAllRated" @click="handleSubmit">
+            提交审核
+          </el-button>
+        </el-tooltip>
+        <el-button
+          v-if="
+            evaluation.status === 'DRAFT' ||
+            evaluation.status === 'APPROVED' ||
+            evaluation.status === 'ARCHIVED'
+          "
+          type="danger"
+          plain
+          @click="handleDelete"
+        >
+          删除
+        </el-button>
+      </template>
     </div>
 
     <template v-if="evaluation">
@@ -328,6 +373,16 @@ onMounted(() => {
           <el-descriptions-item label="状态">
             <el-tag :type="statusMap[evaluation.status]?.type">
               {{ statusMap[evaluation.status]?.label }}
+            </el-tag>
+            <!-- 已驳回且已修改的标签 -->
+            <el-tag
+              v-if="evaluation.status === 'REJECTED' && evaluation.modifiedAt"
+              type="success"
+              size="small"
+              effect="plain"
+              style="margin-left: 8px"
+            >
+              已修改
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="组织者">
@@ -361,15 +416,17 @@ onMounted(() => {
         </div>
       </el-card>
 
-      <!-- 评分进度提示（仅创建者、DRAFT 状态显示） -->
+      <!-- 评分进度提示 -->
       <el-alert
-        v-if="isCreator && evaluation.status === 'DRAFT'"
+        v-if="isCreator && (evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED')"
         :title="
-          isAllRated
-            ? '评分已完成，可以提交审核'
-            : `评分未完成：已评 ${evaluation.ratingItems?.filter((r: any) => r.reviewerId === currentUserId).length || 0} / ${evaluation.participants?.length || 0} 人`
+          evaluation.status === 'REJECTED'
+            ? '评价已被驳回，请修改后重新提交'
+            : isAllRated
+              ? '评分已完成，可以提交审核'
+              : `评分未完成：已评 ${completedCount} / ${evaluation.participants?.length || 0} 人`
         "
-        :type="isAllRated ? 'success' : 'warning'"
+        :type="evaluation.status === 'REJECTED' ? 'error' : isAllRated ? 'success' : 'warning'"
         show-icon
         :closable="false"
         style="margin-bottom: 20px"
@@ -385,8 +442,12 @@ onMounted(() => {
         <el-table :data="evaluation.participants" border stripe>
           <el-table-column type="index" label="序号" width="60" />
           <el-table-column prop="name" label="姓名" min-width="120" />
-          <el-table-column prop="description" label="说明" min-width="200" />
-          <el-table-column prop="phone" label="联系电话" width="140" />
+          <el-table-column prop="description" label="说明" min-width="200">
+            <template #default="{ row }">{{ row.description || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="phone" label="联系方式" width="140">
+            <template #default="{ row }">{{ row.phone || '-' }}</template>
+          </el-table-column>
         </el-table>
       </el-card>
 
@@ -420,7 +481,9 @@ onMounted(() => {
         <el-table :data="evaluation.scoreDimensions" border stripe>
           <el-table-column type="index" label="序号" width="60" />
           <el-table-column prop="name" label="维度名称" min-width="120" />
-          <el-table-column prop="description" label="说明" min-width="200" />
+          <el-table-column prop="description" label="说明" min-width="200">
+            <template #default="{ row }">{{ row.description || '-' }}</template>
+          </el-table-column>
           <el-table-column prop="maxScore" label="满分" width="80" />
           <el-table-column label="权重" width="80">
             <template #default="{ row }"> {{ row.weight }}% </template>
@@ -464,7 +527,7 @@ onMounted(() => {
             v-model="rejectReason"
             type="textarea"
             :rows="4"
-            placeholder="请填写打回原因，以便组织者了解需要修改的内容"
+            placeholder="请填写打回原因，以便创建者了解需要修改的内容"
           />
         </el-form-item>
       </el-form>
@@ -513,6 +576,11 @@ onMounted(() => {
 
 .action-bar :deep(.el-button) {
   min-width: 90px;
+}
+
+/* 让删除按钮始终靠右 */
+.action-bar :deep(.el-button--danger.is-plain) {
+  margin-left: auto;
 }
 
 .section-card {

@@ -75,12 +75,22 @@ request.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      const { status } = error.response;
+      const { status, data } = error.response;
       const isLoginRequest = error.config?.url?.includes('/auth/login');
 
       // 只处理 401 跳转登录页（排除登录接口本身）
       if (status === 401 && !isLoginRequest) {
+        // 清除本地存储的用户信息
         localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+
+        // 如果是账号被禁用，显示提示信息
+        if (data?.message === '账号已被禁用，请联系管理员') {
+          // 使用 alert 或其他方式提示用户
+          alert(data.message);
+        }
+
+        // 跳转到登录页
         window.location.href = '/login';
       }
     }

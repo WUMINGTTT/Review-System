@@ -26,6 +26,12 @@ const router = useRouter(); // 路由实例，用于编程式导航
 // ========== 用户状态 ==========
 const userStore = useUserStore();
 
+// 判断当前用户是否是管理员
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || [];
+  return roles.includes('admin');
+});
+
 // ========== 侧边栏折叠 ==========
 // ref 创建响应式变量，控制侧边栏是否折叠
 const isCollapse = ref(false);
@@ -84,12 +90,7 @@ async function handleLogout() {
 
         <el-menu-item index="/evaluations">
           <el-icon><Document /></el-icon>
-          <span>评价活动</span>
-        </el-menu-item>
-
-        <el-menu-item index="/ratings">
-          <el-icon><Document /></el-icon>
-          <span>我的评分</span>
+          <span>评价管理</span>
         </el-menu-item>
 
         <el-menu-item index="/reviews">
@@ -97,7 +98,7 @@ async function handleLogout() {
           <span>审核管理</span>
         </el-menu-item>
 
-        <el-menu-item index="/users">
+        <el-menu-item v-if="isAdmin" index="/users">
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>

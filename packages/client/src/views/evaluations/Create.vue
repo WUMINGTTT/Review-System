@@ -54,9 +54,14 @@ const reviewerIds = ref<number[]>([]);
 const userOptions = ref<{ id: number; username: string; realName: string }[]>([]);
 const userOptionsLoading = ref(false);
 
-// 过滤掉当前用户，不能选择自己作为评审人
+// 用户选项：将自己置顶显示
 const filteredUserOptions = computed(() => {
-  return userOptions.value.filter((user) => user.id !== userStore.userInfo?.id);
+  const currentUser = userOptions.value.find((user) => user.id === userStore.userInfo?.id);
+  const others = userOptions.value.filter((user) => user.id !== userStore.userInfo?.id);
+  if (currentUser) {
+    return [currentUser, ...others];
+  }
+  return others;
 });
 
 // ========== 步骤 4: 评分维度 ==========
@@ -302,7 +307,7 @@ async function handleSubmit() {
     const res = await createEvaluation(data);
     if (res.success) {
       ElMessage.success('评价创建成功');
-      router.push('/evaluations');
+      router.push(`/evaluations/${res.data.id}`);
     }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.message || '创建失败');
@@ -380,8 +385,12 @@ function getReviewerName(id: number): string {
         <el-table :data="participants" border style="width: 100%">
           <el-table-column type="index" label="序号" width="60" align="center" />
           <el-table-column prop="name" label="姓名" min-width="120" />
-          <el-table-column prop="description" label="说明" min-width="150" />
-          <el-table-column prop="phone" label="电话" min-width="120" />
+          <el-table-column prop="description" label="说明" min-width="150">
+            <template #default="{ row }">{{ row.description || '-' }}</template>
+          </el-table-column>
+          <el-table-column prop="phone" label="联系方式" min-width="120">
+            <template #default="{ row }">{{ row.phone || '-' }}</template>
+          </el-table-column>
           <el-table-column label="操作" width="160" align="center">
             <template #default="{ $index }">
               <el-button
@@ -423,8 +432,8 @@ function getReviewerName(id: number): string {
           <el-form-item label="说明">
             <el-input v-model="participantForm.description" placeholder="请输入说明（选填）" />
           </el-form-item>
-          <el-form-item label="电话">
-            <el-input v-model="participantForm.phone" placeholder="请输入电话（选填）" />
+          <el-form-item label="联系方式">
+            <el-input v-model="participantForm.phone" placeholder="请输入联系方式（选填）" />
           </el-form-item>
         </el-form>
         <template #footer>
@@ -454,6 +463,15 @@ function getReviewerName(id: number): string {
             >
               <span class="reviewer-name">{{ user.realName }}</span>
               <span class="reviewer-username">({{ user.username }})</span>
+              <el-tag
+                v-if="user.id === userStore.userInfo?.id"
+                size="small"
+                type="warning"
+                effect="plain"
+                style="margin-left: 8px"
+              >
+                我
+              </el-tag>
             </el-checkbox>
           </el-checkbox-group>
         </div>
@@ -494,7 +512,9 @@ function getReviewerName(id: number): string {
         <el-table :data="scoreDimensions" border style="width: 100%">
           <el-table-column type="index" label="序号" width="60" align="center" />
           <el-table-column prop="name" label="维度名称" min-width="120" />
-          <el-table-column prop="description" label="说明" min-width="150" />
+          <el-table-column prop="description" label="说明" min-width="150">
+            <template #default="{ row }">{{ row.description || '-' }}</template>
+          </el-table-column>
           <el-table-column prop="maxScore" label="满分值" width="100" align="center" />
           <el-table-column label="权重" width="100" align="center">
             <template #default="{ row }"> {{ row.weight }}% </template>
@@ -567,7 +587,7 @@ function getReviewerName(id: number): string {
           <el-descriptions label-width="150px" :column="1" border>
             <el-descriptions-item label="评价标题">{{ step1Form.title }}</el-descriptions-item>
             <el-descriptions-item label="评价描述">{{
-              step1Form.description
+              step1Form.description || '-'
             }}</el-descriptions-item>
             <el-descriptions-item label="可见性">
               {{ step1Form.visibility === 'PUBLIC' ? '公开' : '私有' }}
@@ -580,8 +600,12 @@ function getReviewerName(id: number): string {
           <el-table :data="participants" border style="width: 100%">
             <el-table-column type="index" label="序号" width="60" align="center" />
             <el-table-column prop="name" label="姓名" />
-            <el-table-column prop="description" label="说明" />
-            <el-table-column prop="phone" label="电话" />
+            <el-table-column prop="description" label="说明">
+              <template #default="{ row }">{{ row.description || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="phone" label="联系方式">
+              <template #default="{ row }">{{ row.phone || '-' }}</template>
+            </el-table-column>
           </el-table>
         </div>
 
@@ -602,7 +626,9 @@ function getReviewerName(id: number): string {
           <h4 class="confirm-block-title">评分维度（{{ scoreDimensions.length }} 个）</h4>
           <el-table :data="scoreDimensions" border style="width: 100%">
             <el-table-column prop="name" label="维度名称" />
-            <el-table-column prop="description" label="说明" />
+            <el-table-column prop="description" label="说明">
+              <template #default="{ row }">{{ row.description || '-' }}</template>
+            </el-table-column>
             <el-table-column prop="maxScore" label="满分值" width="100" align="center" />
             <el-table-column label="权重" width="100" align="center">
               <template #default="{ row }"> {{ row.weight }}% </template>

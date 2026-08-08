@@ -105,6 +105,7 @@ onMounted(() => {
     <!-- 审核列表 -->
     <el-table v-else :data="reviews" border stripe>
       <el-table-column type="index" label="序号" width="60" />
+      <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="title" label="评价标题" min-width="200">
         <template #default="{ row }">
           <el-button type="primary" link @click="goToDetail(row.id)">
@@ -127,12 +128,8 @@ onMounted(() => {
           {{ formatDate(row.submittedAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="80" fixed="right" align="center">
         <template #default="{ row }">
-          <el-button type="success" link @click="handleApprove(row.id, row.title)">
-            通过
-          </el-button>
-          <el-button type="warning" link @click="openRejectDialog(row.id)"> 打回 </el-button>
           <el-button type="primary" link @click="goToDetail(row.id)"> 详情 </el-button>
         </template>
       </el-table-column>

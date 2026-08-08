@@ -100,7 +100,7 @@ export async function login(req: Request, res: Response) {
   if (!user.isActive) {
     return res.status(403).json({
       success: false,
-      message: '账号已被停用，请联系管理员',
+      message: '账号已被禁用，请联系管理员',
     });
   }
 
@@ -162,7 +162,7 @@ export async function loginByEmail(req: Request, res: Response) {
   if (!user.isActive) {
     return res.status(403).json({
       success: false,
-      message: '账号已被停用，请联系管理员',
+      message: '账号已被禁用，请联系管理员',
     });
   }
 

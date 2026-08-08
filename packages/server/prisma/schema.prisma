@@ -83,6 +83,7 @@ model Evaluation {
   submittedAt DateTime?        @map("submitted_at")
   reviewedAt  DateTime?        @map("reviewed_at")
   archivedAt  DateTime?        @map("archived_at")
+  modifiedAt  DateTime?        @map("modified_at")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
 

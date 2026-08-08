@@ -89,6 +89,61 @@ export async function markAsRead(req: Request, res: Response) {
 }
 
 /**
+ * 删除通知
+ *
+ * 路由参数：
+ * - id: 通知ID
+ *
+ * 权限检查：只能删除自己的通知
+ */
+export async function deleteNotification(req: Request, res: Response) {
+  try {
+    const userId = req.user!.id;
+    const notificationId = Number(req.params.id);
+
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: '通知不存在' });
+    }
+
+    if (notification.userId !== userId) {
+      return res.status(403).json({ success: false, message: '无权删除此通知' });
+    }
+
+    await prisma.notification.delete({ where: { id: notificationId } });
+
+    res.json({ success: true, message: '通知已删除' });
+  } catch (error) {
+    console.error('删除通知失败:', error);
+    res.status(500).json({ success: false, message: '删除通知失败' });
+  }
+}
+
+/**
+ * 删除当前用户所有已读通知
+ */
+export async function deleteReadNotifications(req: Request, res: Response) {
+  try {
+    const userId = req.user!.id;
+
+    const result = await prisma.notification.deleteMany({
+      where: {
+        userId,
+        isRead: true,
+      },
+    });
+
+    res.json({ success: true, message: '已清除已读通知', data: { count: result.count } });
+  } catch (error) {
+    console.error('清除已读通知失败:', error);
+    res.status(500).json({ success: false, message: '清除已读通知失败' });
+  }
+}
+
+/**
  * 标记所有通知为已读
  *
  * 将当前用户所有未读通知标记为已读

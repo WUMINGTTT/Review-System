@@ -5,10 +5,11 @@
  * 结构: 侧边栏 + 顶栏 + 内容区
  * 功能: 导航菜单、折叠侧边栏、显示用户信息、退出登录
  */
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessageBox } from 'element-plus';
 import { useUserStore } from '@/stores/user';
+import { getUnreadCount } from '@/api/notification';
 import {
   House,
   Document,
@@ -17,6 +18,7 @@ import {
   Expand,
   Fold,
   ArrowLeft,
+  Bell,
 } from '@element-plus/icons-vue';
 
 // ========== 路由相关 ==========
@@ -46,6 +48,30 @@ function toggleCollapse() {
   isCollapse.value = !isCollapse.value;
 }
 
+// ========== 未读通知数 ==========
+const unreadCount = ref(0);
+
+async function fetchUnreadCount() {
+  try {
+    const res = await getUnreadCount();
+    if (res.success) {
+      unreadCount.value = res.data.total;
+    }
+  } catch {
+    // 静默失败
+  }
+}
+
+// 跳转到通知页面
+function goToNotifications() {
+  router.push('/notifications');
+}
+
+// 路由变化时刷新未读数
+router.afterEach(() => {
+  fetchUnreadCount();
+});
+
 // ========== 退出登录 ==========
 async function handleLogout() {
   try {
@@ -64,6 +90,9 @@ async function handleLogout() {
     // 用户点击取消，不做任何操作
   }
 }
+onMounted(() => {
+  fetchUnreadCount();
+});
 </script>
 
 <template>
@@ -133,6 +162,10 @@ async function handleLogout() {
         </div>
 
         <div class="header-right">
+          <!-- 通知铃铛 -->
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99" class="notification-badge">
+            <el-button :icon="Bell" text @click="goToNotifications" />
+          </el-badge>
           <!-- 显示用户名 -->
           <span class="username">{{
             userStore.userInfo?.realName || userStore.userInfo?.username
@@ -284,5 +317,20 @@ async function handleLogout() {
 .main {
   background-color: #f5f7fa;
   padding: 20px;
+}
+
+/* 通知铃铛 */
+.notification-badge {
+  display: flex;
+  align-items: center;
+}
+
+.notification-badge :deep(.el-button) {
+  font-size: 18px;
+  color: #606266;
+}
+
+.notification-badge :deep(.el-button:hover) {
+  color: #409eff;
 }
 </style>

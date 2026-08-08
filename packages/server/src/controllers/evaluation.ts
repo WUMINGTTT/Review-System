@@ -605,6 +605,15 @@ export async function approveEvaluation(req: Request, res: Response) {
       },
     });
 
+    // 发送通知给创建者
+    await createNotification(
+      evaluation.createdBy,
+      'EVALUATION_APPROVED',
+      '您的评价已通过审核',
+      `评价"${evaluation.title}"已通过审核`,
+      evaluation.id
+    );
+
     res.json({
       success: true,
       message: '审核通过',
@@ -675,6 +684,15 @@ export async function rejectEvaluation(req: Request, res: Response) {
         modifiedAt: null,
       },
     });
+
+    // 发送通知给创建者
+    await createNotification(
+      evaluation.createdBy,
+      'EVALUATION_REJECTED',
+      '您的评价已被驳回',
+      `评价"${evaluation.title}"已被驳回，原因：${validationResult.data.rejectReason}`,
+      evaluation.id
+    );
 
     res.json({
       success: true,

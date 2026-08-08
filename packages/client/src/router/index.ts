@@ -80,6 +80,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '审核管理' },
       },
       {
+        path: 'notifications',
+        name: 'Notifications',
+        component: () => import('../views/notifications/Index.vue'),
+        meta: { title: '通知中心' },
+      },
+      {
         path: 'users',
         name: 'Users',
         component: () => import('../views/users/Index.vue'),

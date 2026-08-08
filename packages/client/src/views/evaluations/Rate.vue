@@ -14,9 +14,11 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { getEvaluationById, submitRatings } from '@/api/evaluation';
+import { useUserStore } from '@/stores/user';
 
 const route = useRoute();
 const router = useRouter();
+const userStore = useUserStore();
 
 // 评价数据
 const evaluation = ref<any>(null);
@@ -90,7 +92,7 @@ function getParticipantScore(dimId: number, participantId: number): number | str
 // 初始化评分数据：尝试从已有评分记录恢复
 function initRatings() {
   const existingItems = evaluation.value?.ratingItems || [];
-  const myItems = existingItems.filter((r: any) => r.reviewerId === evaluation.value?.creator?.id);
+  const myItems = existingItems.filter((r: any) => r.reviewerId === userStore.userInfo?.id);
 
   ratings.value = participants.value.map((p: any) => {
     const existing = myItems.find((r: any) => r.participantId === p.id);

@@ -17,6 +17,13 @@ const evaluations = ref<any[]>([]);
 const loading = ref(false);
 const statusFilter = ref((route.query.status as string) || '');
 
+// 分页
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+});
+
 const statusMap: Record<
   string,
   { label: string; type: 'info' | 'warning' | 'success' | 'danger' | undefined }
@@ -37,12 +44,13 @@ async function fetchEvaluations() {
   loading.value = true;
   try {
     const res = await getEvaluations({
-      page: 1,
-      pageSize: 100,
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize,
       status: statusFilter.value || undefined,
     });
     if (res.success) {
       evaluations.value = res.data.list;
+      pagination.value.total = res.data.total;
     }
   } catch (error) {
     console.error('获取评价列表失败:', error);
@@ -53,6 +61,13 @@ async function fetchEvaluations() {
 
 function handleStatusChange(status: string | number | boolean | undefined) {
   statusFilter.value = String(status || '');
+  pagination.value.page = 1;
+  fetchEvaluations();
+}
+
+// 翻页
+function handlePageChange(page: number) {
+  pagination.value.page = page;
   fetchEvaluations();
 }
 
@@ -116,6 +131,17 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- 分页 -->
+    <el-pagination
+      v-if="pagination.total > pagination.pageSize"
+      v-model:current-page="pagination.page"
+      :page-size="pagination.pageSize"
+      :total="pagination.total"
+      layout="total, prev, pager, next"
+      @current-change="handlePageChange"
+      style="margin-top: 20px; justify-content: flex-end"
+    />
   </div>
 </template>
 

@@ -22,14 +22,7 @@ export async function register(req: Request, res: Response) {
   // 解构验证后的数据（email 为可选字段）
   const { username, password, realName, email } = validationResult.data;
 
-  // 检查用户名是否已存在
-  const whereCondition: any = { username };
-  // 如果用户提供了邮箱，还要检查邮箱是否已被占用
-  if (email) {
-    whereCondition.OR = [{ username }, { email }];
-    delete whereCondition.username;
-  }
-
+  // 检查用户名是否已存在（如提供邮箱则同时检查邮箱）
   const existingUser = await prisma.user.findFirst({
     where: email ? { OR: [{ username }, { email }] } : { username },
   });

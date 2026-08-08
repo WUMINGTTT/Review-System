@@ -34,7 +34,6 @@ import authRouter from './routes/auth';
 import userRouter from './routes/user';
 import evaluationRouter from './routes/evaluation';
 import statsRouter from './routes/stats';
-import ratingRouter from './routes/rating';
 import reviewRouter from './routes/review';
 import notificationRouter from './routes/notification';
 
@@ -88,7 +87,6 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/evaluations', evaluationRouter);
 app.use('/api/stats', statsRouter);
-app.use('/api/ratings', ratingRouter);
 app.use('/api/reviews', reviewRouter);
 app.use('/api/notifications', notificationRouter);
 // 健康检查接口

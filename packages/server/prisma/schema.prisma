@@ -1,7 +1,6 @@
 // prisma/schema.prisma
 //
 // 评价系统数据库模型定义
-// 对应 packages/shared/src/ 中的 TypeScript 类型
 // 数据库: MySQL
 // 表名/字段名: snake_case（通过 @map 映射为 camelCase）
 
@@ -25,7 +24,6 @@ enum EvaluationStatus {
 }
 
 enum RatingItemStatus {
-  PENDING
   DRAFT
   SUBMITTED
 }
@@ -51,10 +49,7 @@ model User {
   username   String    @unique
   password   String
   realName   String    @map("real_name")
-  department String?
   email      String?
-  phone      String?
-  avatar     String?
   roles      String    @default("[]") // JSON 字符串，如 '["user"]' 或 '["admin"]'
   isActive   Boolean   @default(true) @map("is_active")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -76,10 +71,9 @@ model Evaluation {
   title       String
   description String
   status      EvaluationStatus @default(DRAFT)
-  visibility  EvaluationVisibility @default(PUBLIC)  // 评分可见性：公开/隐藏
+  visibility  EvaluationVisibility @default(PUBLIC)
   createdBy   Int              @map("created_by")
   rejectReason String?         @map("reject_reason")
-  reviewComment String?        @map("review_comment")
   submittedAt DateTime?        @map("submitted_at")
   reviewedAt  DateTime?        @map("reviewed_at")
   archivedAt  DateTime?        @map("archived_at")
@@ -100,7 +94,6 @@ model Evaluation {
 }
 
 // 评价-评审人 多对多关联表
-// 一个评价可以有多个评审人，一个用户可以在多个评价中担任评审人
 model EvaluationReviewer {
   id           Int        @id @default(autoincrement())
   evaluationId Int        @map("evaluation_id")
@@ -121,7 +114,7 @@ model Participant {
   id           Int        @id @default(autoincrement())
   evaluationId Int        @map("evaluation_id")
   name         String
-  description  String?    // 被评价人说明（如职责、特点等）
+  description  String?
   phone        String?
 
   // 关联
@@ -138,7 +131,7 @@ model ScoreDimension {
   id           Int      @id @default(autoincrement())
   evaluationId Int      @map("evaluation_id")
   name         String
-  description  String?   // 维度说明，可选
+  description  String?
   maxScore     Int      @default(100) @map("max_score")
   weight       Float
 
@@ -157,13 +150,13 @@ model RatingItem {
   evaluationId   Int              @map("evaluation_id")
   participantId  Int              @map("participant_id")
   reviewerId     Int              @map("reviewer_id")
-  status         RatingItemStatus @default(PENDING)
+  status         RatingItemStatus @default(DRAFT)
   comment        String?
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
 
   // 关联
-  evaluation     Evaluation       @relation(fields: [evaluationId], references: [id])
+  evaluation     Evaluation       @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
   participant    Participant      @relation(fields: [participantId], references: [id])
   reviewer       User             @relation(fields: [reviewerId], references: [id])
   dimensionScores DimensionScore[]
@@ -205,7 +198,7 @@ model Notification {
   updatedAt DateTime         @updatedAt @map("updated_at")
 
   // 关联
-  user      User             @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@map("notifications")

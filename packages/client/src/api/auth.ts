@@ -15,12 +15,3 @@ import request from '@/utils/request'
 export function loginApi(username: string, password: string) {
   return request.post('/auth/login', { username, password })
 }
-
-/**
- * 修改密码
- * @param oldPassword 旧密码
- * @param newPassword 新密码
- */
-export function changePasswordApi(oldPassword: string, newPassword: string) {
-  return request.post('/auth/change-password', { oldPassword, newPassword })
-}

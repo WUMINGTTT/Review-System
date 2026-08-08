@@ -10,7 +10,7 @@
  */
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getUsers, updateUser, updateUserStatus, deleteUser } from '@/api/user';
+import { getUsers, updateUser, updateUserStatus, deleteUser, createUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
 
 const userStore = useUserStore();
@@ -36,6 +36,17 @@ const editForm = ref({
   roles: [] as string[],
 });
 const editLoading = ref(false);
+
+// 创建用户弹窗
+const createDialogVisible = ref(false);
+const createForm = ref({
+  username: '',
+  password: '',
+  realName: '',
+  email: '',
+  roles: ['user'] as string[],
+});
+const createLoading = ref(false);
 
 const roleOptions = [
   { label: '普通用户', value: 'user' },
@@ -160,6 +171,40 @@ async function handleDelete(user: any) {
 onMounted(() => {
   fetchUsers();
 });
+
+// 创建用户
+function openCreateDialog() {
+  createForm.value = {
+    username: '',
+    password: '',
+    realName: '',
+    email: '',
+    roles: ['user'],
+  };
+  createDialogVisible.value = true;
+}
+
+async function handleCreateUser() {
+  createLoading.value = true;
+  try {
+    const res = await createUser({
+      username: createForm.value.username,
+      password: createForm.value.password,
+      realName: createForm.value.realName,
+      email: createForm.value.email || undefined,
+      roles: createForm.value.roles,
+    });
+    if (res.success) {
+      ElMessage.success('用户创建成功');
+      createDialogVisible.value = false;
+      fetchUsers();
+    }
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '创建失败');
+  } finally {
+    createLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -178,6 +223,7 @@ onMounted(() => {
           <el-button @click="handleSearch">搜索</el-button>
         </template>
       </el-input>
+      <el-button type="primary" @click="openCreateDialog">添加用户</el-button>
     </div>
 
     <!-- 空状态 -->
@@ -333,6 +379,38 @@ onMounted(() => {
         <el-button type="primary" @click="handleSaveEdit" :loading="editLoading">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建用户弹窗 -->
+    <el-dialog v-model="createDialogVisible" title="添加用户" :width="isMobile ? '95vw' : '480px'" destroy-on-close>
+      <el-form label-width="80px" v-loading="createLoading">
+        <el-form-item label="用户名" required>
+          <el-input v-model="createForm.username" placeholder="请输入用户名（至少3位）" />
+        </el-form-item>
+        <el-form-item label="密码" required>
+          <el-input v-model="createForm.password" type="password" placeholder="请输入密码（至少6位）" show-password />
+        </el-form-item>
+        <el-form-item label="姓名" required>
+          <el-input v-model="createForm.realName" placeholder="请输入真实姓名" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="createForm.email" placeholder="请输入邮箱（选填）" />
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="createForm.roles" multiple style="width: 100%">
+            <el-option
+              v-for="role in roleOptions"
+              :key="role.value"
+              :label="role.label"
+              :value="role.value"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleCreateUser" :loading="createLoading">创建</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -342,7 +420,11 @@ onMounted(() => {
 }
 
 .top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+  gap: 12px;
 }
 
 /* 用户卡片网格 */

@@ -57,7 +57,14 @@ app.use(helmet());
 // 不注册此中间件，浏览器会拦截前端的 API 请求
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // 开发环境允许所有来源（局域网访问需要）
+      if (process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        callback(null, process.env.CLIENT_URL || 'http://localhost:5173');
+      }
+    },
     credentials: true,
   }),
 );
@@ -130,7 +137,8 @@ app.use(errorHandler);
 // process.env.PORT 从 .env 文件读取，若未配置则默认使用 3000
 const PORT = Number(process.env.PORT) || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`服务器运行在：http://localhost:${PORT}`);
+  console.log(`局域网访问：http://192.168.10.167:${PORT}`);
   console.log(`接口健康检查：http://localhost:${PORT}/api/health`);
 });

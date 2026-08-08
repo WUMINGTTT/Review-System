@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../app';
-import { updateUserSchema, adminUpdateUserSchema } from '../validations/user';
+import { hashPassword } from '../utils/password';
+import { updateUserSchema, adminUpdateUserSchema, createUserSchema } from '../validations/user';
 
 /**
  * 用户控制器
@@ -18,6 +19,56 @@ const userSelect = {
   createdAt: true,
   updatedAt: true,
 };
+
+/**
+ * 管理员创建用户
+ *
+ * 权限：仅管理员
+ */
+export async function createUser(req: Request, res: Response) {
+  try {
+    const validationResult = createUserSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: '参数验证失败',
+        errors: validationResult.error.issues,
+      });
+    }
+
+    const { username, password, realName, email, roles } = validationResult.data;
+
+    // 检查用户名是否已存在
+    const existingUser = await prisma.user.findFirst({
+      where: email ? { OR: [{ username }, { email }] } : { username },
+    });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: email ? '用户名或邮箱已存在' : '用户名已存在',
+      });
+    }
+
+    const hashedPassword = hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        username,
+        password: hashedPassword,
+        realName,
+        email: email || null,
+        roles: JSON.stringify(roles || ['user']),
+        isActive: true,
+      },
+      select: userSelect,
+    });
+
+    res.status(201).json({ success: true, message: '用户创建成功', data: user });
+  } catch (error) {
+    console.error('创建用户失败:', error);
+    res.status(500).json({ success: false, message: '创建用户失败' });
+  }
+}
 
 /**
  * 获取用户列表（分页 + 搜索）

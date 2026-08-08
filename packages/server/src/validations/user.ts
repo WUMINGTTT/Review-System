@@ -1,6 +1,17 @@
 import { z } from 'zod';
 
 /**
+ * 管理员创建用户验证
+ */
+export const createUserSchema = z.object({
+  username: z.string().min(3, { message: '用户名长度至少为3个字符' }),
+  password: z.string().min(6, { message: '密码必须至少为6个字符' }),
+  realName: z.string().min(1, { message: '真实姓名不能为空' }),
+  email: z.email({ message: '邮箱地址无效' }).optional(),
+  roles: z.array(z.enum(['user', 'admin'])).optional(),
+});
+
+/**
  * 用户信息更新表单数据验证
  *
  * 设计说明：

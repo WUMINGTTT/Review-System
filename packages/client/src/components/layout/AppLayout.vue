@@ -109,7 +109,7 @@ onMounted(() => {
     <el-aside v-if="!isMobile" :width="isCollapse ? '72px' : '220px'" class="aside">
       <div class="logo">
         <el-icon :size="22" class="logo-icon"><Promotion /></el-icon>
-        <h1 v-show="!isCollapse">点评系统</h1>
+        <h1 v-show="!isCollapse">评价系统</h1>
       </div>
 
       <el-menu :default-active="activeMenu" :collapse="isCollapse" router class="side-menu">
@@ -147,7 +147,7 @@ onMounted(() => {
     <el-drawer
       v-model="drawerVisible"
       direction="ltr"
-      :size="260"
+      :size="230"
       :show-close="false"
       class="mobile-drawer"
     >

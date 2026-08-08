@@ -26,6 +26,9 @@ import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 
 export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

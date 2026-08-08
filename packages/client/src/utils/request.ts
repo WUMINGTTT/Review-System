@@ -25,10 +25,20 @@ import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'a
  *
  * timeout: 请求超时时间（毫秒），超时后自动取消请求
  */
-const request: AxiosInstance = axios.create({
-  baseURL: import.meta.env.DEV ? 'http://localhost:3000/api' : '/api',
+// 响应拦截器已返回 response.data，实际类型是 any（后端响应体）
+// 覆盖 AxiosInstance 的默认返回类型，避免 TypeScript 报 AxiosResponse 上不存在 success
+const request = axios.create({
+  baseURL: import.meta.env.DEV
+    ? `http://${window.location.hostname}:3000/api`
+    : '/api',
   timeout: 10000,
-});
+}) as AxiosInstance & {
+  get<T = any>(url: string, config?: any): Promise<T>;
+  post<T = any>(url: string, data?: any, config?: any): Promise<T>;
+  put<T = any>(url: string, data?: any, config?: any): Promise<T>;
+  patch<T = any>(url: string, data?: any, config?: any): Promise<T>;
+  delete<T = any>(url: string, config?: any): Promise<T>;
+};
 
 /**
  * 请求拦截器
@@ -70,7 +80,7 @@ request.interceptors.request.use(
  */
 request.interceptors.response.use(
   (response: AxiosResponse) => {
-    // HTTP 状态码 2xx，直接返回数据
+    // HTTP 状态码 2xx，直接返回数据（跳过 AxiosResponse 包装）
     return response.data;
   },
   (error) => {

@@ -49,3 +49,10 @@ export function updateUserStatus(id: number, isActive: boolean) {
 export function deleteUser(id: number) {
   return request.delete(`/users/${id}`) as Promise<any>
 }
+
+/**
+ * 管理员创建用户
+ */
+export function createUser(data: { username: string; password: string; realName: string; email?: string; roles?: string[] }) {
+  return request.post('/users', data) as Promise<any>
+}

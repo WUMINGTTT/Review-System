@@ -3,6 +3,7 @@ import {
   getUsers,
   getUserById,
   getUserOptions,
+  createUser,
   updateUser,
   updateUserStatus,
   deleteUser,
@@ -14,6 +15,7 @@ const router: Router = Router();
 router.get('/options', authMiddleware, getUserOptions); // 用户选项（所有登录用户可用）
 router.get('/', authMiddleware, roleGuard('admin'), getUsers);
 router.get('/:id', authMiddleware, getUserById);
+router.post('/', authMiddleware, roleGuard('admin'), createUser);
 router.put('/:id', authMiddleware, updateUser);
 router.patch('/:id/status', authMiddleware, roleGuard('admin'), updateUserStatus);
 router.delete('/:id', authMiddleware, roleGuard('admin'), deleteUser);

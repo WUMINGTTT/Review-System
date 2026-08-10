@@ -7,7 +7,7 @@
  * 2. 支持筛选：未审核（SUBMITTED）/ 已审核（APPROVED + ARCHIVED）
  * 3. 桌面端表格展示，移动端卡片展示
  */
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { getMyReviews } from '@/api/review';
@@ -20,6 +20,11 @@ const isMobile = computed(() => window.innerWidth < 768);
 
 // 筛选状态：pending=未审核, reviewed=已审核
 const activeTab = ref<'pending' | 'reviewed'>('pending');
+
+const statusOptions: { label: string; value: 'pending' | 'reviewed' }[] = [
+  { label: '未审核', value: 'pending' },
+  { label: '已审核', value: 'reviewed' },
+];
 
 // 状态映射
 const statusMap: Record<string, { label: string; type: string }> = {
@@ -64,11 +69,32 @@ onMounted(() => {
 
 <template>
   <div class="reviews-page">
-    <!-- 标签筛选 -->
-    <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="review-tabs">
-      <el-tab-pane label="未审核" name="pending" />
-      <el-tab-pane label="已审核" name="reviewed" />
-    </el-tabs>
+    <!-- 顶部操作栏 -->
+    <div class="top-bar">
+      <div class="filter-area">
+        <!-- 桌面端 radio group -->
+        <el-radio-group v-if="!isMobile" v-model="activeTab" @change="handleTabChange">
+          <el-radio-button v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </el-radio-button>
+        </el-radio-group>
+        <!-- 手机端下拉 -->
+        <el-select
+          v-else
+          v-model="activeTab"
+          placeholder="筛选状态"
+          @change="handleTabChange"
+          style="width: 130px"
+        >
+          <el-option
+            v-for="opt in statusOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+      </div>
+    </div>
 
     <div v-loading="loading">
       <!-- 空状态 -->
@@ -144,6 +170,26 @@ onMounted(() => {
 <style scoped>
 .reviews-page {
   padding: 0;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.filter-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .card-list {

@@ -25,6 +25,29 @@ import {
 const route = useRoute();
 const router = useRouter();
 
+// 记录上一个路由路径
+const previousPath = ref<string>('');
+
+// 监听路由变化，记录上一个路径
+router.afterEach((to, from) => {
+  previousPath.value = from.fullPath;
+});
+
+// 处理返回逻辑
+function handleBack() {
+  // 如果当前是详情页，且上一个页面是创建/编辑/评分页，则跳转到评价管理
+  if (route.meta.isDetail) {
+    const blockedPaths = ['/evaluations/create', '/rate', '/edit'];
+    const isFromBlocked = blockedPaths.some((p) => previousPath.value.includes(p));
+    if (isFromBlocked) {
+      router.push('/evaluations');
+      return;
+    }
+  }
+  // 默认使用 router.back()
+  router.back();
+}
+
 // ========== 用户状态 ==========
 const userStore = useUserStore();
 
@@ -174,11 +197,7 @@ onMounted(() => {
           <template v-if="route.meta.backTo">
             <span
               class="back-link"
-              @click="
-                route.meta.backMode === 'back'
-                  ? router.back()
-                  : router.push(route.meta.backTo as string)
-              "
+              @click="handleBack"
             >
               <el-icon :size="16"><ArrowLeft /></el-icon>
               <span>返回</span>
@@ -433,6 +452,17 @@ onMounted(() => {
 .main {
   background-color: #f5f7fa;
   padding: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* 右侧内容区使用 flex 布局 */
+.layout-container > .el-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .notification-badge {

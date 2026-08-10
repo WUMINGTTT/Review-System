@@ -11,7 +11,7 @@ import { prisma } from '../app';
  *
  * 返回：
  * - draftCount: 我的草稿数（我创建的、状态为 DRAFT）
- * - pendingCount: 待我审核数（我是评审人、状态为 SUBMITTED）
+ * - pendingCount: 待审核数（我创建的、状态为 SUBMITTED）
  * - approvedCount: 已通过数（仅创建者可见，管理员可见全部）
  * - rejectedCount: 已打回数（仅创建者可见，管理员可见全部）
  * - archivedCount: 已归档数（仅创建者可见，管理员可见全部）
@@ -31,12 +31,9 @@ export async function getDashboardStats(req: Request, res: Response) {
           where: { createdBy: userId, status: 'DRAFT' },
         }),
 
-        // 待我审核：状态为 SUBMITTED、我是评审人
+        // 待审核：我创建的、状态为 SUBMITTED
         prisma.evaluation.count({
-          where: {
-            status: 'SUBMITTED',
-            reviewers: { some: { reviewerId: userId } },
-          },
+          where: { createdBy: userId, status: 'SUBMITTED' },
         }),
 
         // 已通过：仅创建者可见（评价管理页面规则）

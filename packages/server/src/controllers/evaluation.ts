@@ -188,6 +188,35 @@ export async function getEvaluations(req: Request, res: Response) {
               realName: true,
             },
           },
+          // 包含被评价人列表
+          participants: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          // 包含评分维度列表
+          scoreDimensions: {
+            select: {
+              id: true,
+              name: true,
+              weight: true,
+              maxScore: true,
+            },
+          },
+          // 包含当前用户的评分记录（仅 DRAFT 状态需要）
+          ratingItems: {
+            where: { reviewerId: userId },
+            select: {
+              participantId: true,
+              dimensionScores: {
+                select: {
+                  dimensionId: true,
+                  score: true,
+                },
+              },
+            },
+          },
           // 包含被评价人数量和评分记录数量
           _count: {
             select: {

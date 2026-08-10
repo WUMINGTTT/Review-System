@@ -15,6 +15,7 @@ import App from './App.vue'
 import router from './router'
 import { createPinia } from 'pinia'
 import 'element-plus/dist/index.css'
+import './styles/global.css'
 
 const app = createApp(App)
 

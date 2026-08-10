@@ -1,0 +1,99 @@
+/**
+ * 全局样式
+ *
+ * 包含:
+ * 1. 滚动条美化样式
+ * 2. 全局基础样式重置
+ */
+
+/* ========== 滚动条美化 ========== */
+
+/* Webkit 浏览器 (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #c0c4cc;
+  border-radius: 3px;
+  transition: background-color 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #909399;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: #606266;
+}
+
+/* 隐藏滚动条上下箭头 */
+::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c0c4cc transparent;
+}
+
+/* ========== Element Plus 滚动条覆盖 ========== */
+
+.el-scrollbar__bar.is-vertical {
+  width: 6px;
+}
+
+.el-scrollbar__bar.is-horizontal {
+  height: 6px;
+}
+
+.el-scrollbar__thumb {
+  background-color: #c0c4cc;
+  border-radius: 3px;
+}
+
+.el-scrollbar__thumb:hover {
+  background-color: #909399;
+}
+
+/* ========== 全局基础样式 ========== */
+
+/* 平滑滚动 */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 选中文本颜色 */
+::selection {
+  background-color: #409eff;
+  color: #fff;
+}
+
+/* 焦点轮廓优化 */
+:focus-visible {
+  outline: 2px solid #409eff;
+  outline-offset: 2px;
+}
+
+/* 移动端触摸优化 */
+@media (max-width: 767px) {
+  /* 增大触摸目标 */
+  button,
+  .el-button,
+  .el-menu-item {
+    min-height: 44px;
+  }
+}

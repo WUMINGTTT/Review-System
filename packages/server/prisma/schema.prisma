@@ -45,15 +45,16 @@ enum NotificationType {
 // ==================== 用户 ====================
 
 model User {
-  id         Int       @id @default(autoincrement())
-  username   String    @unique
-  password   String
-  realName   String    @map("real_name")
-  email      String?
-  roles      String    @default("[]") // JSON 字符串，如 '["user"]' 或 '["admin"]'
-  isActive   Boolean   @default(true) @map("is_active")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  password     String
+  realName     String    @map("real_name")
+  email        String?
+  roles        String    @default("[]") // JSON 字符串，如 '["user"]' 或 '["admin"]'
+  tokenVersion Int       @default(0) @map("token_version")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // 关联
   createdEvaluations Evaluation[]       @relation("Creator")

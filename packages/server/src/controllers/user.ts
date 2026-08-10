@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../app';
-import { hashPassword } from '../utils/password';
-import { updateUserSchema, adminUpdateUserSchema, createUserSchema } from '../validations/user';
+import { hashPassword, comparePassword } from '../utils/password';
+import { generateToken } from '../utils/jwt';
+import { updateUserSchema, adminUpdateUserSchema, createUserSchema, changePasswordSchema } from '../validations/user';
 
 /**
  * 用户控制器
@@ -174,9 +175,10 @@ export async function updateUser(req: Request, res: Response) {
   try {
     const id = Number(req.params.id);
     const isAdmin = req.user?.roles.includes('admin');
+    const isSelf = req.user?.id === id;
 
     // 权限检查
-    if (req.user?.id !== id && !isAdmin) {
+    if (!isSelf && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: '无权限修改其他用户信息',
@@ -204,6 +206,14 @@ export async function updateUser(req: Request, res: Response) {
       });
     }
 
+    // 禁止修改自己的角色
+    if (isSelf && isAdmin && (validationResult.data as any).roles) {
+      return res.status(400).json({
+        success: false,
+        message: '不能修改自己的角色',
+      });
+    }
+
     // 如果要修改邮箱，检查是否已被其他用户使用
     if (validationResult.data.email) {
       const emailTaken = await prisma.user.findFirst({
@@ -222,8 +232,11 @@ export async function updateUser(req: Request, res: Response) {
 
     // 更新用户，roles 需要序列化为 JSON 字符串
     const updateData: any = { ...validationResult.data };
-    if (updateData.roles) {
+    const rolesChanged = !!updateData.roles;
+    if (rolesChanged) {
       updateData.roles = JSON.stringify(updateData.roles);
+      // 修改其他用户角色时，递增 tokenVersion 使其当前 token 失效
+      updateData.tokenVersion = { increment: 1 };
     }
 
     const updatedUser = await prisma.user.update({
@@ -235,7 +248,12 @@ export async function updateUser(req: Request, res: Response) {
     res.json({
       success: true,
       message: '更新成功',
-      data: updatedUser,
+      data: {
+        ...updatedUser,
+        roles: JSON.parse(updatedUser.roles as string),
+      },
+      // 通知前端：该用户的角色已变更，需要重新登录
+      ...(rolesChanged && { rolesChanged: true }),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: '更新用户信息失败' });
@@ -370,5 +388,81 @@ export async function getUserOptions(req: Request, res: Response) {
   } catch (error) {
     console.error('获取用户选项失败:', error);
     res.status(500).json({ success: false, message: '获取用户选项失败' });
+  }
+}
+
+/**
+ * 修改密码
+ *
+ * 权限：用户只能修改自己的密码
+ * 要求：验证旧密码后才能设置新密码
+ */
+export async function changePassword(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+
+    // 权限检查：只能修改自己的密码
+    if (req.user?.id !== id) {
+      return res.status(403).json({
+        success: false,
+        message: '只能修改自己的密码',
+      });
+    }
+
+    // 验证请求数据
+    const validationResult = changePasswordSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({
+        success: false,
+        message: '参数验证失败',
+        errors: validationResult.error.issues,
+      });
+    }
+
+    const { oldPassword, newPassword } = validationResult.data;
+
+    // 获取用户当前密码
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { password: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在',
+      });
+    }
+
+    // 验证旧密码
+    if (!comparePassword(oldPassword, user.password)) {
+      return res.status(400).json({
+        success: false,
+        message: '旧密码不正确',
+      });
+    }
+
+    // 检查新密码是否与旧密码相同
+    if (comparePassword(newPassword, user.password)) {
+      return res.status(400).json({
+        success: false,
+        message: '新密码不能与旧密码相同',
+      });
+    }
+
+    // 更新密码
+    const hashedNewPassword = hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id },
+      data: { password: hashedNewPassword },
+    });
+
+    res.json({
+      success: true,
+      message: '密码修改成功',
+    });
+  } catch (error) {
+    console.error('修改密码失败:', error);
+    res.status(500).json({ success: false, message: '修改密码失败' });
   }
 }

@@ -100,9 +100,22 @@ onMounted(() => {
           </el-radio-button>
         </el-radio-group>
         <!-- 手机端下拉 -->
-        <el-select v-else v-model="statusFilter" placeholder="筛选状态" clearable @change="handleStatusChange" style="width: 130px">
-          <el-option v-for="opt in statusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        <el-select
+          v-else
+          v-model="statusFilter"
+          placeholder="筛选状态"
+          clearable
+          @change="handleStatusChange"
+          style="width: 130px"
+        >
+          <el-option
+            v-for="opt in statusOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
         </el-select>
+        <span class="total-count">共 {{ pagination.total }} 个评价</span>
       </div>
       <el-button type="primary" @click="router.push('/evaluations/create')"> 创建评价 </el-button>
     </div>
@@ -122,7 +135,7 @@ onMounted(() => {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建者" width="100">
+      <el-table-column label="组织者" width="100">
         <template #default="{ row }">
           {{ row.creator?.realName || row.creator?.username }}
         </template>
@@ -196,6 +209,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.total-count {
+  font-size: 14px;
+  color: #909399;
+  white-space: nowrap;
+  margin-left: 8px;
 }
 
 /* 手机端卡片列表 */

@@ -102,6 +102,7 @@ export async function login(req: Request, res: Response) {
     id: user.id,
     username: user.username,
     roles: JSON.parse(user.roles),
+    tokenVersion: user.tokenVersion,
   });
 
   // 返回用户信息和令牌
@@ -164,6 +165,7 @@ export async function loginByEmail(req: Request, res: Response) {
     id: user.id,
     username: user.username,
     roles: JSON.parse(user.roles),
+    tokenVersion: user.tokenVersion,
   });
 
   // 返回用户信息和令牌

@@ -195,10 +195,7 @@ onMounted(() => {
         <div class="header-left">
           <el-button v-if="isMobile" :icon="Menu" text @click="drawerVisible = true" />
           <template v-if="route.meta.backTo">
-            <span
-              class="back-link"
-              @click="handleBack"
-            >
+            <span class="back-link" @click="handleBack">
               <el-icon :size="16"><ArrowLeft /></el-icon>
               <span>返回</span>
             </span>
@@ -214,7 +211,7 @@ onMounted(() => {
             :max="99"
             class="notification-badge"
           >
-            <el-button :icon="Bell" text @click="goToNotifications" />
+            <el-button :icon="Bell" text @click="goToNotifications" class="notification-btn" />
           </el-badge>
           <div
             class="user-avatar"
@@ -440,7 +437,9 @@ onMounted(() => {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
   user-select: none;
 }
 
@@ -470,6 +469,12 @@ onMounted(() => {
   align-items: center;
 }
 
+.notification-btn {
+  padding: 4px;
+  min-height: auto;
+  height: auto;
+}
+
 .notification-badge :deep(.el-button) {
   font-size: 18px;
   color: #606266;
@@ -479,25 +484,55 @@ onMounted(() => {
   color: #409eff;
 }
 
+.notification-badge :deep(.el-badge__content) {
+  font-size: 10px;
+  padding: 0 4px;
+  height: 16px;
+  line-height: 16px;
+}
+
 /* ========== 手机端适配 ========== */
 @media (max-width: 767px) {
   .header {
     padding: 0 12px;
     height: 50px;
+    overflow: hidden;
   }
 
   .header-left {
     gap: 8px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .header-right {
     gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .page-title {
+    font-size: 14px;
   }
 
   .user-avatar {
     width: 32px;
     height: 32px;
     font-size: 13px;
+  }
+
+  .notification-badge {
+    position: relative;
+    z-index: 1;
+  }
+
+  .notification-badge :deep(.el-badge__content) {
+    font-size: 9px;
+    padding: 0 3px;
+    height: 14px;
+    line-height: 14px;
+    top: 0;
+    right: 0;
+    transform: translate(50%, -50%);
   }
 
   .main {

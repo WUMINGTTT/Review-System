@@ -131,8 +131,8 @@ async function fetchTodoItems() {
     const items: TodoItem[] = [];
 
     // 待审核评价（用户作为审核者）
-    if (pendingRes.success && pendingRes.data) {
-      pendingRes.data.forEach((item: any) => {
+    if (pendingRes.success && pendingRes.data?.list) {
+      pendingRes.data.list.forEach((item: any) => {
         items.push({
           ...item,
           type: 'pending',

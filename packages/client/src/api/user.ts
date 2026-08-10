@@ -56,3 +56,12 @@ export function deleteUser(id: number) {
 export function createUser(data: { username: string; password: string; realName: string; email?: string; roles?: string[] }) {
   return request.post('/users', data) as Promise<any>
 }
+
+/**
+ * 修改密码
+ * @param id 用户 ID
+ * @param data 包含旧密码和新密码
+ */
+export function changePassword(id: number, data: { oldPassword: string; newPassword: string; confirmPassword: string }) {
+  return request.put(`/users/${id}/password`, data) as Promise<any>
+}

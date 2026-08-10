@@ -8,8 +8,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '@/stores/user';
-import { getUserById, updateUser } from '@/api/user';
-import { Edit, SwitchButton, ArrowRight } from '@element-plus/icons-vue';
+import { getUserById, updateUser, changePassword } from '@/api/user';
+import { Edit, SwitchButton, ArrowRight, Lock } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -31,6 +31,15 @@ const editForm = ref({
   email: '',
 });
 const saving = ref(false);
+
+// ========== 修改密码状态 ==========
+const passwordDialogVisible = ref(false);
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+});
+const passwordLoading = ref(false);
 
 // ========== 伪头像字符 ==========
 const avatarChar = computed(() => {
@@ -120,6 +129,56 @@ async function handleLogout() {
     router.push('/login');
   } catch {
     // 取消
+  }
+}
+
+// ========== 修改密码 ==========
+function openPasswordDialog() {
+  passwordForm.value = {
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  };
+  passwordDialogVisible.value = true;
+}
+
+async function handleChangePassword() {
+  // 前端验证
+  if (!passwordForm.value.oldPassword) {
+    ElMessage.warning('请输入旧密码');
+    return;
+  }
+  if (!passwordForm.value.newPassword) {
+    ElMessage.warning('请输入新密码');
+    return;
+  }
+  if (passwordForm.value.newPassword.length < 6) {
+    ElMessage.warning('新密码必须至少为6个字符');
+    return;
+  }
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    ElMessage.warning('两次输入的密码不一致');
+    return;
+  }
+  if (passwordForm.value.oldPassword === passwordForm.value.newPassword) {
+    ElMessage.warning('新密码不能与旧密码相同');
+    return;
+  }
+
+  passwordLoading.value = true;
+  try {
+    const res = await changePassword(userInfo.value.id, passwordForm.value);
+    if (res.success) {
+      ElMessage.success('密码修改成功，请重新登录');
+      passwordDialogVisible.value = false;
+      // 密码修改后强制重新登录
+      userStore.logout();
+      router.push('/login');
+    }
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '修改密码失败');
+  } finally {
+    passwordLoading.value = false;
   }
 }
 
@@ -214,12 +273,53 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- 修改密码 -->
+    <div class="password-card" @click="openPasswordDialog">
+      <el-icon class="password-icon"><Lock /></el-icon>
+      <span class="password-text">修改密码</span>
+      <el-icon class="password-arrow"><ArrowRight /></el-icon>
+    </div>
+
     <!-- 退出登录 -->
     <div class="logout-card" @click="handleLogout">
       <el-icon class="logout-icon"><SwitchButton /></el-icon>
       <span class="logout-text">退出登录</span>
       <el-icon class="logout-arrow"><ArrowRight /></el-icon>
     </div>
+
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="passwordDialogVisible" title="修改密码" :width="isMobile ? '95vw' : '420px'" destroy-on-close>
+      <el-form label-position="top" :model="passwordForm" v-loading="passwordLoading">
+        <el-form-item label="旧密码" required>
+          <el-input
+            v-model="passwordForm.oldPassword"
+            type="password"
+            placeholder="请输入当前密码"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="新密码" required>
+          <el-input
+            v-model="passwordForm.newPassword"
+            type="password"
+            placeholder="请输入新密码（至少6位）"
+            show-password
+          />
+        </el-form-item>
+        <el-form-item label="确认新密码" required>
+          <el-input
+            v-model="passwordForm.confirmPassword"
+            type="password"
+            placeholder="请再次输入新密码"
+            show-password
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="passwordLoading" @click="handleChangePassword">确认修改</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -336,9 +436,44 @@ onMounted(() => {
   margin-top: 24px;
 }
 
+/* ========== 修改密码 ========== */
+.password-card {
+  margin-top: 20px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 28px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.password-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.password-icon {
+  font-size: 20px;
+  color: #409eff;
+}
+
+.password-text {
+  flex: 1;
+  font-size: 15px;
+  color: #303133;
+  font-weight: 500;
+}
+
+.password-arrow {
+  font-size: 14px;
+  color: #c0c4cc;
+}
+
 /* ========== 退出登录 ========== */
 .logout-card {
-  margin-top: 20px;
+  margin-top: 12px;
   background: #fff;
   border-radius: 12px;
   padding: 18px 28px;

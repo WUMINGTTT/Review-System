@@ -12,8 +12,10 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, updateUser, updateUserStatus, deleteUser, createUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
+import { useRouter } from 'vue-router';
 
 const userStore = useUserStore();
+const router = useRouter();
 const isMobile = computed(() => window.innerWidth < 768);
 
 const users = ref<any[]>([]);
@@ -123,6 +125,12 @@ async function handleSaveEdit() {
     if (res.success) {
       ElMessage.success('更新成功');
       editDialogVisible.value = false;
+
+      // 如果修改了其他用户的角色，提示管理员该用户需要重新登录
+      if (res.rolesChanged) {
+        ElMessage.warning('该用户的角色已变更，下次登录时将生效');
+      }
+
       fetchUsers();
     }
   } catch (error) {
@@ -211,18 +219,21 @@ async function handleCreateUser() {
   <div class="users-page">
     <!-- 搜索栏 -->
     <div class="top-bar">
-      <el-input
-        v-model="keyword"
-        placeholder="搜索用户名、姓名、邮箱"
-        clearable
-        style="width: 300px"
-        @keyup.enter="handleSearch"
-        @clear="handleSearch"
-      >
-        <template #append>
-          <el-button @click="handleSearch">搜索</el-button>
-        </template>
-      </el-input>
+      <div class="filter-area">
+        <el-input
+          v-model="keyword"
+          placeholder="搜索用户名、姓名、邮箱"
+          clearable
+          style="width: 300px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        >
+          <template #append>
+            <el-button @click="handleSearch">搜索</el-button>
+          </template>
+        </el-input>
+        <span class="total-count">共 {{ pagination.total }} 个用户</span>
+      </div>
       <el-button type="primary" @click="openCreateDialog">添加用户</el-button>
     </div>
 
@@ -232,6 +243,7 @@ async function handleCreateUser() {
     <!-- 桌面端表格 -->
     <el-table v-else-if="!isMobile" :data="users" v-loading="loading" border stripe>
       <el-table-column type="index" label="序号" width="60" />
+      <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="username" label="用户名" width="120" />
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="email" label="邮箱" min-width="180" />
@@ -283,21 +295,13 @@ async function handleCreateUser() {
         <div class="card-header">
           <div class="user-info">
             <span class="user-name">{{ user.realName || user.username }}</span>
-            <span class="user-username">@{{ user.username }}</span>
+            <span class="user-username">ID: {{ user.id }} · @{{ user.username }}</span>
           </div>
           <div class="card-tags">
-            <el-tag
-              :type="isAdminUser(user.roles) ? 'danger' : 'info'"
-              size="small"
-              effect="plain"
-            >
+            <el-tag :type="isAdminUser(user.roles) ? 'danger' : 'info'" size="small" effect="plain">
               {{ isAdminUser(user.roles) ? '管理员' : '用户' }}
             </el-tag>
-            <el-tag
-              :type="user.isActive ? 'success' : 'danger'"
-              size="small"
-              effect="plain"
-            >
+            <el-tag :type="user.isActive ? 'success' : 'danger'" size="small" effect="plain">
               {{ user.isActive ? '正常' : '禁用' }}
             </el-tag>
           </div>
@@ -309,7 +313,7 @@ async function handleCreateUser() {
             <span class="detail-value">{{ user.email }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">注册</span>
+            <span class="detail-label">注册于</span>
             <span class="detail-value">{{ formatDate(user.createdAt) }}</span>
           </div>
         </div>
@@ -352,7 +356,12 @@ async function handleCreateUser() {
     />
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="editDialogVisible" title="编辑用户" :width="isMobile ? '95vw' : '480px'" destroy-on-close>
+    <el-dialog
+      v-model="editDialogVisible"
+      title="编辑用户"
+      :width="isMobile ? '95vw' : '480px'"
+      destroy-on-close
+    >
       <el-form label-width="80px" v-loading="editLoading">
         <el-form-item label="用户名">
           <el-input :model-value="editForm.username" disabled />
@@ -364,7 +373,12 @@ async function handleCreateUser() {
           <el-input v-model="editForm.email" placeholder="请输入邮箱" />
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="editForm.roles" multiple style="width: 100%">
+          <el-select
+            v-model="editForm.roles"
+            multiple
+            style="width: 100%"
+            :disabled="editForm.id === userStore.userInfo?.id"
+          >
             <el-option
               v-for="role in roleOptions"
               :key="role.value"
@@ -372,6 +386,9 @@ async function handleCreateUser() {
               :value="role.value"
             />
           </el-select>
+          <div v-if="editForm.id === userStore.userInfo?.id" class="form-tip">
+            不能修改自己的角色
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -381,13 +398,23 @@ async function handleCreateUser() {
     </el-dialog>
 
     <!-- 创建用户弹窗 -->
-    <el-dialog v-model="createDialogVisible" title="添加用户" :width="isMobile ? '95vw' : '480px'" destroy-on-close>
+    <el-dialog
+      v-model="createDialogVisible"
+      title="添加用户"
+      :width="isMobile ? '95vw' : '480px'"
+      destroy-on-close
+    >
       <el-form label-width="80px" v-loading="createLoading">
         <el-form-item label="用户名" required>
           <el-input v-model="createForm.username" placeholder="请输入用户名（至少3位）" />
         </el-form-item>
         <el-form-item label="密码" required>
-          <el-input v-model="createForm.password" type="password" placeholder="请输入密码（至少6位）" show-password />
+          <el-input
+            v-model="createForm.password"
+            type="password"
+            placeholder="请输入密码（至少6位）"
+            show-password
+          />
         </el-form-item>
         <el-form-item label="姓名" required>
           <el-input v-model="createForm.realName" placeholder="请输入真实姓名" />
@@ -408,7 +435,9 @@ async function handleCreateUser() {
       </el-form>
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreateUser" :loading="createLoading">创建</el-button>
+        <el-button type="primary" @click="handleCreateUser" :loading="createLoading"
+          >创建</el-button
+        >
       </template>
     </el-dialog>
   </div>
@@ -425,6 +454,18 @@ async function handleCreateUser() {
   align-items: center;
   margin-bottom: 20px;
   gap: 12px;
+}
+
+.filter-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.total-count {
+  font-size: 14px;
+  color: #909399;
+  white-space: nowrap;
 }
 
 /* 用户卡片网格 */
@@ -503,7 +544,7 @@ async function handleCreateUser() {
   font-size: 12px;
   color: #909399;
   flex-shrink: 0;
-  width: 32px;
+  width: 48px;
 }
 
 .detail-value {
@@ -520,6 +561,7 @@ async function handleCreateUser() {
   gap: 4px;
   padding-top: 12px;
   border-top: 1px solid #f0f0f0;
+  height: 30px;
 }
 
 /* ========== 响应式 ========== */
@@ -547,5 +589,11 @@ async function handleCreateUser() {
   .top-bar :deep(.el-input) {
     width: 100% !important;
   }
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 </style>

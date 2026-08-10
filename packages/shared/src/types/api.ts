@@ -145,4 +145,6 @@ export interface JwtPayload {
    * 注意: 组织者/评审者身份不在此处，而是在具体评价活动中体现
    */
   roles: string[];
+  /** Token 版本号，用于强制其他用户重新登录 */
+  tokenVersion: number;
 }

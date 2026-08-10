@@ -34,17 +34,25 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     });
   }
 
-  // 检查用户是否被禁用
+  // 检查用户状态和 token 版本
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
-      select: { isActive: true },
+      select: { isActive: true, tokenVersion: true },
     });
 
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
         message: '账号已被禁用，请联系管理员',
+      });
+    }
+
+    // 检查 token 版本是否匹配，不匹配说明角色被修改，需要重新登录
+    if (payload.tokenVersion !== undefined && payload.tokenVersion !== user.tokenVersion) {
+      return res.status(401).json({
+        success: false,
+        message: '权限已变更，请重新登录',
       });
     }
   } catch (error) {

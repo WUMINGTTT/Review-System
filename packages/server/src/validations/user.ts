@@ -7,7 +7,7 @@ export const createUserSchema = z.object({
   username: z.string().min(3, { message: '用户名长度至少为3个字符' }),
   password: z.string().min(6, { message: '密码必须至少为6个字符' }),
   realName: z.string().min(1, { message: '真实姓名不能为空' }),
-  email: z.email({ message: '邮箱地址无效' }).optional(),
+  email: z.string().email({ message: '邮箱地址无效' }).optional().or(z.literal('')),
   roles: z.array(z.enum(['user', 'admin'])).optional(),
 });
 
@@ -19,7 +19,7 @@ export const createUserSchema = z.object({
  */
 export const updateUserSchema = z.object({
   realName: z.string().min(1, { message: '真实姓名不能为空' }).optional(),
-  email: z.email({ message: '邮箱地址无效' }).optional(),
+  email: z.string().email({ message: '邮箱地址无效' }).optional().or(z.literal('')),
 });
 
 /**
@@ -31,5 +31,17 @@ export const updateUserSchema = z.object({
 export const adminUpdateUserSchema = updateUserSchema.extend({
   roles: z.array(z.enum(['user', 'admin'])).optional(),
   isActive: z.boolean().optional(),
+});
+
+/**
+ * 修改密码表单数据验证
+ */
+export const changePasswordSchema = z.object({
+  oldPassword: z.string().min(1, { message: '请输入旧密码' }),
+  newPassword: z.string().min(6, { message: '新密码必须至少为6个字符' }),
+  confirmPassword: z.string().min(1, { message: '请确认新密码' }),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: '两次输入的密码不一致',
+  path: ['confirmPassword'],
 });
 

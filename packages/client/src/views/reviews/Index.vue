@@ -21,6 +21,13 @@ const isMobile = computed(() => window.innerWidth < 768);
 // 筛选状态：pending=未审核, reviewed=已审核
 const activeTab = ref<'pending' | 'reviewed'>('pending');
 
+// 分页
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+});
+
 const statusOptions: { label: string; value: 'pending' | 'reviewed' }[] = [
   { label: '未审核', value: 'pending' },
   { label: '已审核', value: 'reviewed' },
@@ -41,9 +48,14 @@ function formatDate(date: string | null | undefined) {
 async function fetchReviews() {
   loading.value = true;
   try {
-    const res = await getMyReviews({ status: activeTab.value });
+    const res = await getMyReviews({
+      status: activeTab.value,
+      page: pagination.value.page,
+      pageSize: pagination.value.pageSize,
+    });
     if (res.success) {
-      reviews.value = res.data;
+      reviews.value = res.data.list;
+      pagination.value.total = res.data.total;
     }
   } catch (error) {
     console.error('获取审核列表失败:', error);
@@ -59,6 +71,13 @@ function goToDetail(id: number) {
 
 // 切换标签时重新获取数据
 function handleTabChange() {
+  pagination.value.page = 1;
+  fetchReviews();
+}
+
+// 分页变化
+function handlePageChange(page: number) {
+  pagination.value.page = page;
   fetchReviews();
 }
 
@@ -93,6 +112,7 @@ onMounted(() => {
             :value="opt.value"
           />
         </el-select>
+        <span class="total-count">共 {{ pagination.total }} 个审核</span>
       </div>
     </div>
 
@@ -164,6 +184,17 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 分页 -->
+    <el-pagination
+      v-if="pagination.total > pagination.pageSize"
+      v-model:current-page="pagination.page"
+      :page-size="pagination.pageSize"
+      :total="pagination.total"
+      layout="total, prev, pager, next"
+      @current-change="handlePageChange"
+      style="margin-top: 20px; justify-content: flex-end"
+    />
   </div>
 </template>
 
@@ -190,6 +221,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.total-count {
+  font-size: 14px;
+  color: #909399;
+  white-space: nowrap;
+  margin-left: 8px;
 }
 
 .card-list {

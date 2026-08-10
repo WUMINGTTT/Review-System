@@ -32,7 +32,14 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Download, Edit } from '@element-plus/icons-vue';
 
-echarts.use([RadarChart, BarChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer]);
+echarts.use([
+  RadarChart,
+  BarChart,
+  TooltipComponent,
+  LegendComponent,
+  GridComponent,
+  CanvasRenderer,
+]);
 
 const route = useRoute();
 const router = useRouter();
@@ -77,7 +84,11 @@ const hasActions = computed(() => {
   if (!evaluation.value) return false;
   const status = evaluation.value.status;
   // 创建者：DRAFT/REJECTED（评分+提交），APPROVED/ARCHIVED（删除），SUBMITTED 无操作
-  if (isCreator.value && (status === 'DRAFT' || status === 'REJECTED' || status === 'APPROVED' || status === 'ARCHIVED')) return true;
+  if (
+    isCreator.value &&
+    (status === 'DRAFT' || status === 'REJECTED' || status === 'APPROVED' || status === 'ARCHIVED')
+  )
+    return true;
   // 审核者：SUBMITTED（通过+打回），APPROVED（归档）
   if (isReviewer.value && (status === 'SUBMITTED' || status === 'APPROVED')) return true;
   // 管理员（非审核者）：APPROVED（归档）
@@ -163,8 +174,16 @@ let chartInstance: echarts.ECharts | null = null;
 const chartType = ref<'radar' | 'bar'>('radar');
 
 const chartColors = [
-  '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
-  '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#48b8d0',
+  '#5470c6',
+  '#91cc75',
+  '#fac858',
+  '#ee6666',
+  '#73c0de',
+  '#3ba272',
+  '#fc8452',
+  '#9a60b4',
+  '#ea7ccc',
+  '#48b8d0',
 ];
 
 function initChart() {
@@ -265,7 +284,7 @@ const statusMap: Record<
 // 可见性映射
 const visibilityMap: Record<string, string> = {
   PUBLIC: '公开',
-  PRIVATE: '隐藏',
+  PRIVATE: '私有',
 };
 
 // 格式化日期
@@ -403,7 +422,11 @@ async function handleExport() {
     // 获取雷达图图片
     let chartImage = '';
     if (chartInstance) {
-      chartImage = chartInstance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+      chartImage = chartInstance.getDataURL({
+        type: 'png',
+        pixelRatio: 2,
+        backgroundColor: '#fff',
+      });
     }
 
     // 构建报告 HTML
@@ -445,13 +468,17 @@ async function handleExport() {
               </tr>
             </thead>
             <tbody>
-              ${participants.map((p: any, i: number) => `
+              ${participants
+                .map(
+                  (p: any, i: number) => `
                 <tr style="border-bottom: 1px solid #ebeef5;">
                   <td style="padding: 8px 12px;">${i + 1}</td>
                   <td style="padding: 8px 12px;">${p.name}</td>
                   <td style="padding: 8px 12px; color: #909399;">${p.description || '-'}</td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </tbody>
           </table>
         </div>
@@ -468,13 +495,17 @@ async function handleExport() {
               </tr>
             </thead>
             <tbody>
-              ${reviewers.map((r: any, i: number) => `
+              ${reviewers
+                .map(
+                  (r: any, i: number) => `
                 <tr style="border-bottom: 1px solid #ebeef5;">
                   <td style="padding: 8px 12px;">${i + 1}</td>
                   <td style="padding: 8px 12px;">${r.reviewer?.realName || r.reviewer?.username || '-'}</td>
                   <td style="padding: 8px 12px; color: #909399;">${r.reviewer?.username || '-'}</td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </tbody>
           </table>
         </div>
@@ -493,7 +524,9 @@ async function handleExport() {
               </tr>
             </thead>
             <tbody>
-              ${dimensions.map((d: any, i: number) => `
+              ${dimensions
+                .map(
+                  (d: any, i: number) => `
                 <tr style="border-bottom: 1px solid #ebeef5;">
                   <td style="padding: 8px 12px;">${i + 1}</td>
                   <td style="padding: 8px 12px;">${d.name}</td>
@@ -501,23 +534,31 @@ async function handleExport() {
                   <td style="padding: 8px 12px;">${d.maxScore} 分</td>
                   <td style="padding: 8px 12px; color: #909399;">${d.description || '-'}</td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </tbody>
           </table>
         </div>
 
         <!-- 雷达图 -->
-        ${chartImage ? `
+        ${
+          chartImage
+            ? `
         <div style="margin-bottom: 24px;">
           <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">评分雷达图</h2>
           <div style="text-align: center;">
             <img src="${chartImage}" style="max-width: 100%; height: auto;" />
           </div>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <!-- 评分总览 -->
-        ${scoreSummary.value.length ? `
+        ${
+          scoreSummary.value.length
+            ? `
         <div style="margin-bottom: 24px;">
           <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">评分总览</h2>
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -530,18 +571,24 @@ async function handleExport() {
               </tr>
             </thead>
             <tbody>
-              ${scoreSummary.value.map((item: any) => `
+              ${scoreSummary.value
+                .map(
+                  (item: any) => `
                 <tr style="border-bottom: 1px solid #ebeef5;">
                   <td style="padding: 8px 12px; font-weight: 500;">${item.name}</td>
                   ${dimensions.map((d: any) => `<td style="padding: 8px 12px;">${item.scores[d.id] ?? '-'}</td>`).join('')}
                   <td style="padding: 8px 12px; font-weight: 600; color: #409eff;">${item.total}</td>
                   <td style="padding: 8px 12px; color: #606266; max-width: 200px;">${item.comment || '-'}</td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </tbody>
           </table>
         </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <!-- 页脚 -->
         <div style="margin-top: 40px; padding-top: 16px; border-top: 1px solid #ebeef5; text-align: center; font-size: 12px; color: #909399;">
@@ -858,8 +905,16 @@ onBeforeUnmount(() => {
             <span class="section-title">评分总览</span>
             <div class="chart-toggle">
               <el-button-group size="small">
-                <el-button :type="chartType === 'radar' ? 'primary' : ''" @click="switchChartType('radar')">雷达图</el-button>
-                <el-button :type="chartType === 'bar' ? 'primary' : ''" @click="switchChartType('bar')">柱状图</el-button>
+                <el-button
+                  :type="chartType === 'radar' ? 'primary' : ''"
+                  @click="switchChartType('radar')"
+                  >雷达图</el-button
+                >
+                <el-button
+                  :type="chartType === 'bar' ? 'primary' : ''"
+                  @click="switchChartType('bar')"
+                  >柱状图</el-button
+                >
               </el-button-group>
             </div>
           </div>
@@ -874,11 +929,7 @@ onBeforeUnmount(() => {
               <span class="score-total">{{ item.total }}</span>
             </div>
             <div class="score-dimensions">
-              <span
-                v-for="dim in evaluation.scoreDimensions"
-                :key="dim.id"
-                class="score-dim"
-              >
+              <span v-for="dim in evaluation.scoreDimensions" :key="dim.id" class="score-dim">
                 {{ dim.name }}: {{ item.scores[dim.id] ?? '-' }}
               </span>
             </div>

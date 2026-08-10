@@ -7,11 +7,11 @@
 import request from '@/utils/request'
 
 /**
- * 获取用户选项（精简版）
+ * 获取用户选项（精简版，支持分页和搜索）
  * 用于选择评审人等场景，只返回 id、username、realName
  */
-export function getUserOptions() {
-  return request.get('/users/options') as Promise<any>
+export function getUserOptions(params?: { page?: number; pageSize?: number; keyword?: string }) {
+  return request.get('/users/options', { params }) as Promise<any>
 }
 
 /**

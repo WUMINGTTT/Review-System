@@ -359,10 +359,15 @@ export async function deleteUser(req: Request, res: Response) {
 }
 
 /**
- * 获取用户选项列表（精简版）
+ * 获取用户选项列表（精简版，支持分页和搜索）
  *
  * 权限：所有登录用户
  * 用途：创建评价时选择评审人，只返回基本信息，不暴露敏感数据
+ *
+ * 查询参数：
+ * - page: 页码（默认 1）
+ * - pageSize: 每页数量（默认 10）
+ * - keyword: 搜索关键词（模糊匹配用户名、真实姓名）
  *
  * 返回字段：
  * - id: 用户 ID
@@ -371,19 +376,43 @@ export async function deleteUser(req: Request, res: Response) {
  */
 export async function getUserOptions(req: Request, res: Response) {
   try {
-    const users = await prisma.user.findMany({
-      where: { isActive: true },  // 只返回启用的用户
-      select: {
-        id: true,
-        username: true,
-        realName: true,
-      },
-      orderBy: { username: 'asc' },  // 按用户名排序
-    });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 10));
+    const keyword = req.query.keyword as string | undefined;
+
+    // 构建搜索条件
+    const where: any = { isActive: true };
+    if (keyword) {
+      where.OR = [
+        { username: { contains: keyword } },
+        { realName: { contains: keyword } },
+      ];
+    }
+
+    // 并行查询列表和总数
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          username: true,
+          realName: true,
+        },
+        orderBy: { username: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.user.count({ where }),
+    ]);
 
     res.json({
       success: true,
-      data: users,
+      data: {
+        list: users,
+        total,
+        page,
+        pageSize,
+      },
     });
   } catch (error) {
     console.error('获取用户选项失败:', error);

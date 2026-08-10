@@ -61,6 +61,12 @@ const editingParticipantIndex = ref<number>(-1);
 const reviewerIds = ref<number[]>([]);
 const userOptions = ref<{ id: number; username: string; realName: string }[]>([]);
 const userOptionsLoading = ref(false);
+const userSearchKeyword = ref('');
+const userPagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+});
 
 // 用户选项：将自己置顶显示
 const filteredUserOptions = computed(() => {
@@ -215,15 +221,32 @@ async function removeParticipant(index: number) {
 async function loadUserOptions() {
   userOptionsLoading.value = true;
   try {
-    const res = await getUserOptions();
+    const res = await getUserOptions({
+      page: userPagination.value.page,
+      pageSize: userPagination.value.pageSize,
+      keyword: userSearchKeyword.value || undefined,
+    });
     if (res.success) {
-      userOptions.value = res.data;
+      userOptions.value = res.data.list;
+      userPagination.value.total = res.data.total;
     }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.message || '获取用户列表失败');
   } finally {
     userOptionsLoading.value = false;
   }
+}
+
+// 搜索用户
+function handleUserSearch() {
+  userPagination.value.page = 1;
+  loadUserOptions();
+}
+
+// 用户分页变化
+function handleUserPageChange(page: number) {
+  userPagination.value.page = page;
+  loadUserOptions();
 }
 
 // ========== 步骤 4: 评分维度操作 ==========
@@ -462,8 +485,12 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="操作" width="160" align="center">
             <template #default="{ $index }">
-              <el-button type="primary" link :icon="Edit" @click="openEditParticipantDialog($index)">编辑</el-button>
-              <el-button type="danger" link :icon="Delete" @click="removeParticipant($index)">删除</el-button>
+              <el-button type="primary" link :icon="Edit" @click="openEditParticipantDialog($index)"
+                >编辑</el-button
+              >
+              <el-button type="danger" link :icon="Delete" @click="removeParticipant($index)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -474,8 +501,16 @@ onMounted(() => {
               <span class="item-index">{{ index + 1 }}</span>
               <span class="item-name">{{ p.name }}</span>
               <div class="item-actions">
-                <el-button type="primary" link size="small" @click="openEditParticipantDialog(index)">编辑</el-button>
-                <el-button type="danger" link size="small" @click="removeParticipant(index)">删除</el-button>
+                <el-button
+                  type="primary"
+                  link
+                  size="small"
+                  @click="openEditParticipantDialog(index)"
+                  >编辑</el-button
+                >
+                <el-button type="danger" link size="small" @click="removeParticipant(index)"
+                  >删除</el-button
+                >
               </div>
             </div>
             <div v-if="p.description" class="item-detail">
@@ -530,6 +565,38 @@ onMounted(() => {
           <span class="tip">至少选择 1 人</span>
         </div>
 
+        <!-- 搜索框 -->
+        <div class="reviewer-search">
+          <el-input
+            v-model="userSearchKeyword"
+            placeholder="搜索用户名或姓名"
+            clearable
+            @keyup.enter="handleUserSearch"
+            @clear="handleUserSearch"
+          >
+            <template #append>
+              <el-button @click="handleUserSearch">搜索</el-button>
+            </template>
+          </el-input>
+          <span class="reviewer-total">共 {{ userPagination.total }} 人</span>
+        </div>
+
+        <!-- 已选择的评审人 -->
+        <div v-if="reviewerIds.length > 0" class="selected-reviewers">
+          <div class="selected-label">已选择 {{ reviewerIds.length }} 人：</div>
+          <div class="selected-tags">
+            <el-tag
+              v-for="id in reviewerIds"
+              :key="id"
+              closable
+              @close="reviewerIds = reviewerIds.filter((r) => r !== id)"
+            >
+              {{ getReviewerName(id) }}
+            </el-tag>
+          </div>
+        </div>
+
+        <!-- 用户列表 -->
         <div v-loading="userOptionsLoading" class="reviewer-list">
           <el-empty
             v-if="!userOptionsLoading && filteredUserOptions.length === 0"
@@ -557,18 +624,16 @@ onMounted(() => {
           </el-checkbox-group>
         </div>
 
-        <div v-if="reviewerIds.length > 0" class="selected-reviewers">
-          <span>已选择 {{ reviewerIds.length }} 人：</span>
-          <el-tag
-            v-for="id in reviewerIds"
-            :key="id"
-            closable
-            @close="reviewerIds = reviewerIds.filter((r) => r !== id)"
-            style="margin-left: 8px"
-          >
-            {{ getReviewerName(id) }}
-          </el-tag>
-        </div>
+        <!-- 用户分页 -->
+        <el-pagination
+          v-if="userPagination.total > userPagination.pageSize"
+          v-model:current-page="userPagination.page"
+          :page-size="userPagination.pageSize"
+          :total="userPagination.total"
+          layout="prev, pager, next"
+          @current-change="handleUserPageChange"
+          style="margin-top: 12px; justify-content: flex-end"
+        />
       </div>
 
       <!-- 步骤 4: 评分维度 -->
@@ -603,8 +668,12 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="操作" width="160" align="center">
             <template #default="{ $index }">
-              <el-button type="primary" link :icon="Edit" @click="openEditDimensionDialog($index)">编辑</el-button>
-              <el-button type="danger" link :icon="Delete" @click="removeDimension($index)">删除</el-button>
+              <el-button type="primary" link :icon="Edit" @click="openEditDimensionDialog($index)"
+                >编辑</el-button
+              >
+              <el-button type="danger" link :icon="Delete" @click="removeDimension($index)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -616,8 +685,12 @@ onMounted(() => {
               <span class="item-name">{{ dim.name }}</span>
               <span class="item-badge">{{ dim.weight }}%</span>
               <div class="item-actions">
-                <el-button type="primary" link size="small" @click="openEditDimensionDialog(index)">编辑</el-button>
-                <el-button type="danger" link size="small" @click="removeDimension(index)">删除</el-button>
+                <el-button type="primary" link size="small" @click="openEditDimensionDialog(index)"
+                  >编辑</el-button
+                >
+                <el-button type="danger" link size="small" @click="removeDimension(index)"
+                  >删除</el-button
+                >
               </div>
             </div>
             <div v-if="dim.description" class="item-detail">
@@ -915,10 +988,29 @@ onMounted(() => {
   padding: 40px 0;
 }
 
+.reviewer-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.reviewer-search .el-input {
+  flex: 1;
+}
+
+.reviewer-total {
+  font-size: 14px;
+  color: #909399;
+  white-space: nowrap;
+}
+
 .reviewer-list {
   padding: 16px;
   border: 1px solid #ebeef5;
   border-radius: 4px;
+  /* max-height: 400px; */
+  /* overflow-y: auto; */
 }
 
 .reviewer-item {
@@ -937,9 +1029,22 @@ onMounted(() => {
 }
 
 .selected-reviewers {
-  margin-top: 16px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f8ff;
+  border: 1px solid #d9ecff;
+  border-radius: 8px;
+}
+
+.selected-label {
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.selected-tags {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }

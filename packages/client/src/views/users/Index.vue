@@ -12,10 +12,8 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUsers, updateUser, updateUserStatus, deleteUser, createUser } from '@/api/user';
 import { useUserStore } from '@/stores/user';
-import { useRouter } from 'vue-router';
 
 const userStore = useUserStore();
-const router = useRouter();
 const isMobile = computed(() => window.innerWidth < 768);
 
 const users = ref<any[]>([]);

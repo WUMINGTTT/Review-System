@@ -53,10 +53,14 @@ export async function getNotifications(req: Request, res: Response) {
     }
 
     // 并行查询通知列表和总数
+    // 排序优先级：未读消息优先，然后按时间倒序（最近的在前）
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [
+          { isRead: 'asc' },     // 未读(false)在前，已读(true)在后
+          { createdAt: 'desc' }, // 同状态内按时间倒序
+        ],
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

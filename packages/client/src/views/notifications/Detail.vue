@@ -162,7 +162,9 @@ onMounted(() => {
             </div>
             <div class="info-item">
               <span class="info-label">组织者</span>
-              <span class="info-value">{{ evaluation.creator?.realName || evaluation.creator?.username }}</span>
+              <span class="info-value">{{
+                evaluation.creator?.realName || evaluation.creator?.username
+              }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">被评价人数</span>
@@ -171,11 +173,7 @@ onMounted(() => {
           </div>
 
           <div class="eval-actions">
-            <el-button
-              v-if="canViewEvaluation"
-              type="primary"
-              @click="goToEvaluation"
-            >
+            <el-button v-if="canViewEvaluation" type="primary" @click="goToEvaluation">
               前往评价详情
             </el-button>
             <el-alert
@@ -189,14 +187,9 @@ onMounted(() => {
         </div>
 
         <!-- 评价不可查看 -->
-        <el-empty v-else-if="!evalLoading" description="评价暂未提交审核，无法查看详情" />
+        <el-empty v-else-if="!evalLoading" description="评价无法查看" />
       </div>
     </el-card>
-
-    <!-- 返回按钮 -->
-    <div class="back-actions">
-      <el-button @click="router.push('/notifications')">返回通知列表</el-button>
-    </div>
   </div>
 </template>
 

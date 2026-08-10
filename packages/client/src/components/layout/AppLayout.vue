@@ -30,7 +30,7 @@ const router = useRouter();
 const previousPath = ref<string>('');
 
 // 监听路由变化，记录上一个路径
-router.afterEach((to, from) => {
+router.afterEach((_to, from) => {
   previousPath.value = from.fullPath;
 });
 

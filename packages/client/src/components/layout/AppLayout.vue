@@ -19,6 +19,7 @@ import {
   Bell,
   Menu,
   Promotion,
+  List,
 } from '@element-plus/icons-vue';
 
 // ========== 路由相关 ==========
@@ -141,6 +142,10 @@ onMounted(() => {
           <el-icon :size="20"><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/admin/evaluations">
+          <el-icon :size="20"><List /></el-icon>
+          <span>全部评价</span>
+        </el-menu-item>
       </el-menu>
 
       <div class="sidebar-bottom">
@@ -185,6 +190,10 @@ onMounted(() => {
         <el-menu-item v-if="isAdmin" index="/users">
           <el-icon :size="20"><User /></el-icon>
           <span>用户管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="isAdmin" index="/admin/evaluations">
+          <el-icon :size="20"><List /></el-icon>
+          <span>全部评价</span>
         </el-menu-item>
       </el-menu>
     </el-drawer>

@@ -8,7 +8,7 @@
  * 3. 支持提交、审核通过、打回、归档等操作
  *
  * 权限逻辑:
- * - 创建者（组织者）：可评分(DRAFT)、提交(DRAFT/REJECTED)、删除(DRAFT)
+ * - 创建者：可评分(DRAFT)、提交(DRAFT/REJECTED)、删除(DRAFT)
  * - 评审人：可审核通过(SUBMITTED)、打回(SUBMITTED)、归档(APPROVED)
  * - 管理员：可归档(APPROVED)
  */
@@ -281,12 +281,6 @@ const statusMap: Record<
   ARCHIVED: { label: '已归档', type: undefined },
 };
 
-// 可见性映射
-const visibilityMap: Record<string, string> = {
-  PUBLIC: '公开',
-  PRIVATE: '私有',
-};
-
 // 格式化日期
 function formatDate(date: string | null | undefined) {
   if (!date) return '-';
@@ -439,7 +433,7 @@ async function handleExport() {
             <span style="display: inline-block; padding: 2px 12px; border-radius: 12px; background: ${ev.status === 'ARCHIVED' ? '#e6f7e6' : '#fff3e6'}; color: ${ev.status === 'ARCHIVED' ? '#52c41a' : '#fa8c16'}; margin-right: 16px;">
               ${statusMap[ev.status]?.label || ev.status}
             </span>
-            组织者：${ev.creator?.realName || ev.creator?.username || '-'}
+            创建者：${ev.creator?.realName || ev.creator?.username || '-'}
           </div>
         </div>
 
@@ -447,7 +441,6 @@ async function handleExport() {
         <div style="margin-bottom: 24px;">
           <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">基本信息</h2>
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-            <tr><td style="padding: 8px 12px; background: #f5f7fa; width: 100px; color: #606266;">可见性</td><td style="padding: 8px 12px;">${visibilityMap[ev.visibility] || ev.visibility}</td></tr>
             <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">创建时间</td><td style="padding: 8px 12px;">${formatDate(ev.createdAt)}</td></tr>
             <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">提交时间</td><td style="padding: 8px 12px;">${formatDate(ev.submittedAt)}</td></tr>
             <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">审核时间</td><td style="padding: 8px 12px;">${formatDate(ev.reviewedAt)}</td></tr>
@@ -781,11 +774,8 @@ onBeforeUnmount(() => {
               已修改
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="组织者">
+          <el-descriptions-item label="创建者">
             {{ evaluation.creator?.realName || evaluation.creator?.username }}
-          </el-descriptions-item>
-          <el-descriptions-item label="可见性">
-            {{ visibilityMap[evaluation.visibility] || evaluation.visibility }}
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">
             {{ formatDate(evaluation.createdAt) }}

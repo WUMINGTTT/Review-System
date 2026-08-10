@@ -139,7 +139,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="组织者" width="120">
+        <el-table-column label="创建者" width="120">
           <template #default="{ row }">
             {{ row.creator?.realName || row.creator?.username }}
           </template>

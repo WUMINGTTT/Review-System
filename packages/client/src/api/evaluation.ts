@@ -1,7 +1,12 @@
 import request from '@/utils/request';
 
 // 获取评价列表
-export function getEvaluations(params?: { page?: number; pageSize?: number; status?: string }) {
+export function getEvaluations(params?: {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  keyword?: string;
+}) {
   return request.get('/evaluations', { params }) as Promise<any>;
 }
 
@@ -14,7 +19,6 @@ export function getEvaluationById(id: number) {
 export function createEvaluation(data: {
   title: string;
   description: string;
-  visibility?: 'PUBLIC' | 'PRIVATE';
   participants: { name: string; description?: string; phone?: string }[];
   reviewerIds: number[];
   scoreDimensions: { name: string; description?: string; maxScore?: number; weight: number }[];
@@ -28,7 +32,6 @@ export function updateEvaluation(
   data: {
     title?: string;
     description?: string;
-    visibility?: 'PUBLIC' | 'PRIVATE';
     participants?: { name: string; description?: string; phone?: string }[];
     reviewerIds?: number[];
     scoreDimensions?: { name: string; description?: string; maxScore?: number; weight: number }[];
@@ -40,6 +43,11 @@ export function updateEvaluation(
 // 删除评价
 export function deleteEvaluation(id: number) {
   return request.delete(`/evaluations/${id}`) as Promise<any>;
+}
+
+// 管理员删除评价（无状态限制）
+export function adminDeleteEvaluation(id: number) {
+  return request.delete(`/evaluations/admin/${id}`) as Promise<any>;
 }
 
 // 提交评价（DRAFT/REJECTED → SUBMITTED）

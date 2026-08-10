@@ -1,28 +1,33 @@
 <script setup lang="ts">
 /**
- * 评价管理列表页面
+ * 管理员评价管理页面
  *
- * 设计说明:
- * - 桌面端表格展示，移动端卡片展示
- * - 操作栏展示详情按钮
+ * 功能:
+ * 1. 展示所有状态的所有评价
+ * 2. 列表展示，分页显示
+ * 3. 提供搜索与状态分类筛选
+ * 4. 点击详情跳转到评价详情页
+ * 5. 可删除评价（唯一操作项）
  */
 import { ref, computed, onMounted } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { getEvaluations } from '@/api/evaluation';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { getEvaluations, adminDeleteEvaluation } from '@/api/evaluation';
 
 const router = useRouter();
-const route = useRoute();
+const isMobile = computed(() => window.innerWidth < 768);
 
 const evaluations = ref<any[]>([]);
 const loading = ref(false);
-const statusFilter = ref((route.query.status as string) || '');
-const isMobile = computed(() => window.innerWidth < 768);
 
 const pagination = ref({
   page: 1,
-  pageSize: 10,
+  pageSize: 15,
   total: 0,
 });
+
+const keyword = ref('');
+const statusFilter = ref('');
 
 const statusMap: Record<
   string,
@@ -55,6 +60,7 @@ async function fetchEvaluations() {
     const res = await getEvaluations({
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
+      keyword: keyword.value || undefined,
       status: statusFilter.value || undefined,
     });
     if (res.success) {
@@ -66,6 +72,11 @@ async function fetchEvaluations() {
   } finally {
     loading.value = false;
   }
+}
+
+function handleSearch() {
+  pagination.value.page = 1;
+  fetchEvaluations();
 }
 
 function handleStatusChange(val: string | number | boolean | undefined) {
@@ -83,16 +94,49 @@ function goToDetail(id: number) {
   router.push(`/evaluations/${id}`);
 }
 
+async function handleDelete(evaluation: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除评价"${evaluation.title}"吗？此操作不可恢复。`,
+      '删除确认',
+      {
+        type: 'error',
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+      },
+    );
+    const res = await adminDeleteEvaluation(evaluation.id);
+    if (res.success) {
+      ElMessage.success('删除成功');
+      fetchEvaluations();
+    }
+  } catch {
+    // 取消
+  }
+}
+
 onMounted(() => {
   fetchEvaluations();
 });
 </script>
 
 <template>
-  <div class="evaluations-page">
-    <!-- 顶部操作栏 -->
+  <div class="admin-evaluations-page">
+    <!-- 顶部筛选栏 -->
     <div class="top-bar">
       <div class="filter-area">
+        <el-input
+          v-model="keyword"
+          placeholder="搜索评价标题、描述"
+          clearable
+          style="width: 280px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        >
+          <template #append>
+            <el-button @click="handleSearch">搜索</el-button>
+          </template>
+        </el-input>
         <!-- 桌面端 radio group -->
         <el-radio-group v-if="!isMobile" v-model="statusFilter" @change="handleStatusChange">
           <el-radio-button v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
@@ -117,7 +161,6 @@ onMounted(() => {
         </el-select>
         <span class="total-count">共 {{ pagination.total }} 个评价</span>
       </div>
-      <el-button type="primary" @click="router.push('/evaluations/create')"> 创建评价 </el-button>
     </div>
 
     <!-- 空状态 -->
@@ -127,7 +170,7 @@ onMounted(() => {
     <el-table v-else-if="!isMobile" :data="evaluations" v-loading="loading" border stripe>
       <el-table-column type="index" label="序号" width="60" />
       <el-table-column prop="id" label="ID" width="60" />
-      <el-table-column prop="title" label="评价标题" min-width="180" />
+      <el-table-column prop="title" label="评价标题" min-width="200" show-overflow-tooltip />
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="statusMap[row.status]?.type" size="small" effect="plain">
@@ -145,37 +188,44 @@ onMounted(() => {
           {{ row._count?.participants || 0 }}
         </template>
       </el-table-column>
+      <el-table-column label="审核者数" width="90" align="center">
+        <template #default="{ row }">
+          {{ row._count?.reviewers || 0 }}
+        </template>
+      </el-table-column>
       <el-table-column label="创建时间" width="170">
         <template #default="{ row }">
           {{ formatDate(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="80" fixed="right" align="center">
+      <el-table-column label="操作" width="130" fixed="right" align="center">
         <template #default="{ row }">
           <el-button type="primary" link @click="goToDetail(row.id)">详情</el-button>
+          <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 手机端卡片列表 -->
     <div v-else v-loading="loading" class="card-list">
-      <div
-        v-for="item in evaluations"
-        :key="item.id"
-        class="eval-card"
-        @click="goToDetail(item.id)"
-      >
-        <div class="card-top">
-          <span class="card-id">#{{ item.id }}</span>
-          <el-tag :type="statusMap[item.status]?.type" size="small" effect="plain">
-            {{ statusMap[item.status]?.label }}
-          </el-tag>
+      <div v-for="item in evaluations" :key="item.id" class="eval-card">
+        <div class="card-top" @click="goToDetail(item.id)">
+          <div class="card-info">
+            <span class="card-id">#{{ item.id }}</span>
+            <el-tag :type="statusMap[item.status]?.type" size="small" effect="plain">
+              {{ statusMap[item.status]?.label }}
+            </el-tag>
+          </div>
+          <h3 class="card-title">{{ item.title }}</h3>
+          <div class="card-meta">
+            <span>{{ item.creator?.realName || item.creator?.username }}</span>
+            <span>{{ item._count?.participants || 0 }} 人</span>
+            <span>{{ formatDate(item.createdAt) }}</span>
+          </div>
         </div>
-        <h3 class="card-title">{{ item.title }}</h3>
-        <div class="card-meta">
-          <span>{{ item.creator?.realName || item.creator?.username }}</span>
-          <span>{{ item._count?.participants || 0 }} 人</span>
-          <span>{{ formatDate(item.createdAt) }}</span>
+        <div class="card-actions">
+          <el-button type="primary" link size="small" @click="goToDetail(item.id)">详情</el-button>
+          <el-button type="danger" link size="small" @click="handleDelete(item)">删除</el-button>
         </div>
       </div>
     </div>
@@ -194,7 +244,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.evaluations-page {
+.admin-evaluations-page {
   padding: 0;
 }
 
@@ -203,19 +253,21 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .filter-area {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .total-count {
   font-size: 14px;
   color: #909399;
   white-space: nowrap;
-  margin-left: 8px;
 }
 
 /* 手机端卡片列表 */
@@ -230,7 +282,6 @@ onMounted(() => {
   border: 1px solid #e4e7ed;
   border-radius: 10px;
   padding: 14px 16px;
-  cursor: pointer;
   transition: all 0.2s ease;
 }
 
@@ -240,9 +291,14 @@ onMounted(() => {
 }
 
 .card-top {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.card-info {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
@@ -264,5 +320,29 @@ onMounted(() => {
   gap: 12px;
   font-size: 12px;
   color: #909399;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+  height: 30px;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 767px) {
+  .top-bar {
+    margin-bottom: 16px;
+  }
+
+  .top-bar :deep(.el-input) {
+    width: 100% !important;
+  }
+
+  .filter-area {
+    width: 100%;
+  }
 }
 </style>

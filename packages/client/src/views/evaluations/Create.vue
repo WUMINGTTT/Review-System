@@ -3,7 +3,7 @@
  * 创建/编辑评价页面 - 多步骤表单
  *
  * 功能:
- * 1. 基本信息：标题、描述、可见性
+ * 1. 基本信息：标题、描述
  * 2. 被评价人：弹窗添加，列表展示，支持编辑/删除
  * 3. 评审人：选择评审人
  * 4. 评分维度：弹窗添加，列表展示，支持编辑/删除
@@ -36,7 +36,6 @@ const step1FormRef = ref<FormInstance>();
 const step1Form = reactive({
   title: '',
   description: '',
-  visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE',
 });
 const step1Rules = {
   title: [{ required: true, message: '请输入评价标题', trigger: 'blur' }],
@@ -315,7 +314,6 @@ async function handleSubmit() {
     const data = {
       title: step1Form.title,
       description: step1Form.description,
-      visibility: step1Form.visibility,
       participants: participants.value.map((p) => ({
         name: p.name,
         description: p.description || undefined,
@@ -370,7 +368,6 @@ async function loadEvaluationData() {
       // 填充基本信息
       step1Form.title = ev.title;
       step1Form.description = ev.description || '';
-      step1Form.visibility = ev.visibility || 'PUBLIC';
 
       // 填充被评价人
       participants.value = (ev.participants || []).map((p: any) => ({
@@ -443,23 +440,6 @@ onMounted(() => {
               :rows="4"
               placeholder="请输入评价描述"
             />
-          </el-form-item>
-
-          <el-form-item label="可见性">
-            <el-radio-group v-model="step1Form.visibility" class="visibility-group">
-              <el-radio value="PUBLIC">
-                <div class="radio-label">
-                  <span class="radio-title">公开</span>
-                  <span class="radio-desc">所有人可见评分结果</span>
-                </div>
-              </el-radio>
-              <el-radio value="PRIVATE">
-                <div class="radio-label">
-                  <span class="radio-title">私有</span>
-                  <span class="radio-desc">仅创建者和审核者可见</span>
-                </div>
-              </el-radio>
-            </el-radio-group>
           </el-form-item>
         </el-form>
       </div>
@@ -762,9 +742,6 @@ onMounted(() => {
             <el-descriptions-item label="评价描述">{{
               step1Form.description || '-'
             }}</el-descriptions-item>
-            <el-descriptions-item label="可见性">
-              {{ step1Form.visibility === 'PUBLIC' ? '公开' : '私有' }}
-            </el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -932,33 +909,6 @@ onMounted(() => {
 
 .step1-form :deep(.el-form-item) {
   margin-bottom: 24px;
-}
-
-.visibility-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.visibility-group :deep(.el-radio) {
-  height: auto;
-  margin-right: 0;
-}
-
-.radio-label {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.4;
-}
-
-.radio-title {
-  font-weight: 500;
-  color: #303133;
-}
-
-.radio-desc {
-  font-size: 12px;
-  color: #909399;
 }
 
 .section-header {

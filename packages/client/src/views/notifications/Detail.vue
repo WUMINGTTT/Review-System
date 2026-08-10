@@ -161,7 +161,7 @@ onMounted(() => {
               </span>
             </div>
             <div class="info-item">
-              <span class="info-label">组织者</span>
+              <span class="info-label">创建者</span>
               <span class="info-value">{{
                 evaluation.creator?.realName || evaluation.creator?.username
               }}</span>

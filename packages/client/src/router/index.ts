@@ -1,4 +1,4 @@
-/**
+ /**
  * Vue Router 路由配置
  *
  * 职责:
@@ -14,6 +14,7 @@
  *     /reviews      - 审核管理
  *     /archive      - 已归档
  *     /users        - 用户管理（仅管理员）
+ *     /admin/evaluations - 全部评价管理（仅管理员）
  *     /profile      - 个人中心
  */
 
@@ -108,6 +109,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Users',
         component: () => import('../views/users/Index.vue'),
         meta: { title: '用户管理', roles: ['admin'] },
+      },
+      {
+        path: 'admin/evaluations',
+        name: 'AdminEvaluations',
+        component: () => import('../views/admin/Evaluations.vue'),
+        meta: { title: '评价管理', roles: ['admin'] },
       },
     ],
   },

@@ -4,6 +4,7 @@ import {
   getEvaluations,
   updateEvaluation,
   deleteEvaluation,
+  adminDeleteEvaluation,
   getEvaluationById,
   submitEvaluation,
   rejectEvaluation,
@@ -11,9 +12,12 @@ import {
   archiveEvaluation,
   submitRatings,
 } from '../controllers/evaluation';
-import { authMiddleware } from '../middlewares/auth';
+import { authMiddleware, roleGuard } from '../middlewares/auth';
 
 const router: ReturnType<typeof Router> = Router();
+
+// 管理员路由（放在 /:id 之前，避免被匹配）
+router.delete('/admin/:id', authMiddleware, roleGuard('admin'), adminDeleteEvaluation);
 
 // 所有路由都需要登录
 router.post('/', authMiddleware, createEvaluation);

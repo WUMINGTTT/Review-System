@@ -36,7 +36,7 @@ export async function createEvaluation(req: Request, res: Response) {
       });
     }
 
-    const { title, description, visibility, participants, reviewerIds, scoreDimensions } =
+    const { title, description, participants, reviewerIds, scoreDimensions } =
       validationResult.data;
 
     // 2. 验证评分维度权重之和是否为 100
@@ -66,7 +66,7 @@ export async function createEvaluation(req: Request, res: Response) {
         data: {
           title,
           description,
-          visibility, // 评分可见性：PUBLIC（公开）或 PRIVATE（隐藏）
+          visibility: 'PRIVATE', // 固定为私有
           createdBy: req.user!.id, // 从 JWT 中获取当前用户 ID
           status: 'DRAFT', // 初始状态为草稿
         },
@@ -389,7 +389,7 @@ export async function updateEvaluation(req: Request, res: Response) {
       });
     }
 
-    const { title, description, visibility, participants, reviewerIds, scoreDimensions } =
+    const { title, description, participants, reviewerIds, scoreDimensions } =
       validationResult.data;
 
     // 如果修改了评分维度，验证权重之和
@@ -429,7 +429,6 @@ export async function updateEvaluation(req: Request, res: Response) {
       const updateData: any = {};
       if (title) updateData.title = title;
       if (description !== undefined) updateData.description = description;
-      if (visibility) updateData.visibility = visibility;
 
       // REJECTED 状态修改后，清除驳回原因，记录修改时间
       if (evaluation.status === 'REJECTED') {
@@ -885,6 +884,48 @@ export async function rejectEvaluation(req: Request, res: Response) {
   } catch (error) {
     console.error('审核评价失败:', error);
     res.status(500).json({ success: false, message: '审核评价失败' });
+  }
+}
+
+/**
+ * 管理员删除评价（无状态限制）
+ *
+ * 权限：仅管理员
+ * 与普通 deleteEvaluation 不同，管理员可以删除任何状态的评价
+ */
+export async function adminDeleteEvaluation(req: Request, res: Response) {
+  try {
+    const id = Number(req.params.id);
+
+    const evaluation = await prisma.evaluation.findUnique({ where: { id } });
+    if (!evaluation) {
+      return res.status(404).json({
+        success: false,
+        message: '评价不存在',
+      });
+    }
+
+    // 使用事务：先删评分相关记录（因RatingItem未设置级联删除），再删评价
+    await prisma.$transaction(async (tx) => {
+      // 删除维度评分记录（通过 ratingItem 关联）
+      await tx.dimensionScore.deleteMany({
+        where: { ratingItem: { evaluationId: id } },
+      });
+      // 删除评分记录
+      await tx.ratingItem.deleteMany({
+        where: { evaluationId: id },
+      });
+      // 删除评价（级联删除被评价人、评审人、评分维度）
+      await tx.evaluation.delete({ where: { id } });
+    });
+
+    res.json({
+      success: true,
+      message: '删除成功',
+    });
+  } catch (error) {
+    console.error('管理员删除评价失败:', error);
+    res.status(500).json({ success: false, message: '删除评价失败' });
   }
 }
 

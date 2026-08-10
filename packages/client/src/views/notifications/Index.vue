@@ -115,9 +115,7 @@ async function handleMarkAllAsRead() {
 
 function handleClick(item: any) {
   handleMarkAsRead(item);
-  if (item.relatedId) {
-    router.push(`/evaluations/${item.relatedId}`);
-  }
+  router.push(`/notifications/${item.id}`);
 }
 
 async function handleDelete(item: any, event: Event) {

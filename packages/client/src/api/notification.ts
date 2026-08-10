@@ -5,6 +5,11 @@ export function getNotifications(params?: { page?: number; pageSize?: number; is
   return request.get('/notifications', { params }) as Promise<any>
 }
 
+// 获取单条通知详情
+export function getNotificationById(id: number) {
+  return request.get(`/notifications/${id}`) as Promise<any>
+}
+
 // 获取未读通知数（复用列表接口，只取未读）
 export function getUnreadCount() {
   return request.get('/notifications', { params: { pageSize: 1, isRead: false } }) as Promise<any>

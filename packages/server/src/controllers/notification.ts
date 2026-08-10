@@ -2,6 +2,36 @@ import { Request, Response } from 'express';
 import { prisma } from '../app';
 
 /**
+ * 获取单条通知详情
+ *
+ * 路由参数：
+ * - id: 通知ID
+ */
+export async function getNotificationById(req: Request, res: Response) {
+  try {
+    const userId = req.user!.id;
+    const notificationId = Number(req.params.id);
+
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: '通知不存在' });
+    }
+
+    if (notification.userId !== userId) {
+      return res.status(403).json({ success: false, message: '无权查看此通知' });
+    }
+
+    res.json({ success: true, data: notification });
+  } catch (error) {
+    console.error('获取通知详情失败:', error);
+    res.status(500).json({ success: false, message: '获取通知详情失败' });
+  }
+}
+
+/**
  * 获取通知列表
  *
  * 查询参数：

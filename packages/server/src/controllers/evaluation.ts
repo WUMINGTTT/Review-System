@@ -278,16 +278,19 @@ export async function getEvaluationById(req: Request, res: Response) {
       const isCreator = evaluation.createdBy === userId;
       const isReviewer = evaluation.reviewers.some((r) => r.reviewerId === userId);
 
-      // DRAFT / REJECTED / APPROVED / ARCHIVED: 仅创建者可见
-      if (evaluation.status !== 'SUBMITTED' && !isCreator) {
+      // DRAFT / REJECTED: 仅创建者可见
+      if (
+        (evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED') &&
+        !isCreator
+      ) {
         return res.status(404).json({
           success: false,
           message: '评价不存在',
         });
       }
 
-      // SUBMITTED: 创建者 + 评审人可见
-      if (evaluation.status === 'SUBMITTED' && !isCreator && !isReviewer) {
+      // SUBMITTED / APPROVED / ARCHIVED: 创建者 + 评审人可见
+      if (!isCreator && !isReviewer) {
         return res.status(404).json({
           success: false,
           message: '评价不存在',

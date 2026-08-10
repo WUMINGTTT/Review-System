@@ -7,13 +7,13 @@ import request from '@/utils/request'
 /**
  * 登录
  */
-export function loginApi(username: string, password: string) {
-  return request.post<any>('/auth/login', { username, password })
+export function loginApi(username: string, password: string): Promise<any> {
+  return request.post('/auth/login', { username, password })
 }
 
 /**
  * 注册
  */
-export function registerApi(data: { username: string; password: string; realName: string; email?: string }) {
-  return request.post<any>('/auth/register', data)
+export function registerApi(data: { username: string; password: string; realName: string; email?: string }): Promise<any> {
+  return request.post('/auth/register', data)
 }

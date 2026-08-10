@@ -791,7 +791,7 @@ onBeforeUnmount(() => {
         <div class="info-grid">
           <div v-for="(p, index) in evaluation.participants" :key="p.id" class="info-item">
             <div class="info-item-header">
-              <span class="info-index">{{ index + 1 }}</span>
+              <span class="info-index">{{ Number(index) + 1 }}</span>
               <span class="info-name">{{ p.name }}</span>
             </div>
             <div v-if="p.description" class="info-detail">
@@ -814,7 +814,7 @@ onBeforeUnmount(() => {
         <div class="info-grid">
           <div v-for="(r, index) in evaluation.reviewers" :key="r.id" class="info-item">
             <div class="info-item-header">
-              <span class="info-index">{{ index + 1 }}</span>
+              <span class="info-index">{{ Number(index) + 1 }}</span>
               <span class="info-name">{{ r.reviewer?.realName || r.reviewer?.username }}</span>
             </div>
             <div class="info-detail">
@@ -835,7 +835,7 @@ onBeforeUnmount(() => {
         <div class="info-grid">
           <div v-for="(dim, index) in evaluation.scoreDimensions" :key="dim.id" class="info-item">
             <div class="info-item-header">
-              <span class="info-index">{{ index + 1 }}</span>
+              <span class="info-index">{{ Number(index) + 1 }}</span>
               <span class="info-name">{{ dim.name }}</span>
               <span class="info-badge">{{ dim.weight }}%</span>
             </div>

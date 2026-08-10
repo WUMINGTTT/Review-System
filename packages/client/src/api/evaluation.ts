@@ -22,6 +22,21 @@ export function createEvaluation(data: {
   return request.post('/evaluations', data) as Promise<any>;
 }
 
+// 更新评价
+export function updateEvaluation(
+  id: number,
+  data: {
+    title?: string;
+    description?: string;
+    visibility?: 'PUBLIC' | 'PRIVATE';
+    participants?: { name: string; description?: string; phone?: string }[];
+    reviewerIds?: number[];
+    scoreDimensions?: { name: string; description?: string; maxScore?: number; weight: number }[];
+  },
+) {
+  return request.put(`/evaluations/${id}`, data) as Promise<any>;
+}
+
 // 删除评价
 export function deleteEvaluation(id: number) {
   return request.delete(`/evaluations/${id}`) as Promise<any>;

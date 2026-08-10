@@ -7,14 +7,12 @@
  */
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessageBox } from 'element-plus';
 import { useUserStore } from '@/stores/user';
 import { getUnreadCount } from '@/api/notification';
 import {
   House,
   Document,
   User,
-  SwitchButton,
   Expand,
   Fold,
   ArrowLeft,
@@ -82,20 +80,11 @@ router.afterEach(() => {
   fetchUnreadCount();
 });
 
-// ========== 退出登录 ==========
-async function handleLogout() {
-  try {
-    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      type: 'warning',
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-    });
-    userStore.logout();
-    router.push('/login');
-  } catch {
-    // 取消
-  }
-}
+// ========== 用户头像 ==========
+const avatarChar = computed(() => {
+  const name = userStore.userInfo?.realName || userStore.userInfo?.username || '用';
+  return name.charAt(0).toUpperCase();
+});
 
 onMounted(() => {
   fetchUnreadCount();
@@ -208,12 +197,13 @@ onMounted(() => {
           >
             <el-button :icon="Bell" text @click="goToNotifications" />
           </el-badge>
-          <span v-if="!isMobile" class="username">{{
-            userStore.userInfo?.realName || userStore.userInfo?.username
-          }}</span>
-          <el-button :icon="SwitchButton" text @click="handleLogout">
-            <span v-if="!isMobile">退出</span>
-          </el-button>
+          <div
+            class="user-avatar"
+            :title="userStore.userInfo?.realName || userStore.userInfo?.username || '用户'"
+            @click="router.push('/profile')"
+          >
+            {{ avatarChar }}
+          </div>
         </div>
       </el-header>
 
@@ -419,9 +409,25 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.username {
-  font-size: 14px;
-  color: #606266;
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #409eff, #337ecc);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+
+.user-avatar:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.4);
 }
 
 .main {
@@ -456,6 +462,12 @@ onMounted(() => {
 
   .header-right {
     gap: 8px;
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
   }
 
   .main {

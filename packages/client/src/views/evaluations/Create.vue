@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 创建评价页面 - 多步骤表单
+ * 创建/编辑评价页面 - 多步骤表单
  *
  * 功能:
  * 1. 基本信息：标题、描述、可见性
@@ -8,21 +8,28 @@
  * 3. 评审人：选择评审人
  * 4. 评分维度：弹窗添加，列表展示，支持编辑/删除
  * 5. 确认提交：查看汇总信息并提交
+ *
+ * 支持编辑模式：通过路由参数 id 判断
  */
 import { ref, reactive, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { createEvaluation } from '@/api/evaluation';
+import { createEvaluation, getEvaluationById, updateEvaluation } from '@/api/evaluation';
 import { getUserOptions } from '@/api/user';
 import { useUserStore } from '@/stores/user';
 import type { FormInstance } from 'element-plus';
 import { Plus, Delete, Edit } from '@element-plus/icons-vue';
 
+const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const loading = ref(false);
 const currentStep = ref(0);
 const isMobile = computed(() => window.innerWidth < 768);
+
+// 编辑模式
+const isEditMode = computed(() => !!route.params.id);
+const evaluationId = computed(() => Number(route.params.id));
 
 // ========== 步骤 1: 基本信息 ==========
 const step1FormRef = ref<FormInstance>();
@@ -98,11 +105,6 @@ const steps = [
   { title: '评分维度', description: '设置评分维度和权重' },
   { title: '确认提交', description: '查看汇总信息并提交' },
 ];
-
-// 页面加载时获取用户选项
-onMounted(() => {
-  loadUserOptions();
-});
 
 // 验证当前步骤
 async function validateCurrentStep(): Promise<boolean> {
@@ -305,13 +307,22 @@ async function handleSubmit() {
       })),
     };
 
-    const res = await createEvaluation(data);
-    if (res.success) {
-      ElMessage.success('评价创建成功');
-      router.push(`/evaluations/${res.data.id}`);
+    let res;
+    if (isEditMode.value) {
+      res = await updateEvaluation(evaluationId.value, data);
+      if (res.success) {
+        ElMessage.success('评价更新成功');
+        router.push(`/evaluations/${evaluationId.value}`);
+      }
+    } else {
+      res = await createEvaluation(data);
+      if (res.success) {
+        ElMessage.success('评价创建成功');
+        router.push(`/evaluations/${res.data.id}`);
+      }
     }
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.message || '创建失败');
+    ElMessage.error(error.response?.data?.message || (isEditMode.value ? '更新失败' : '创建失败'));
   } finally {
     loading.value = false;
   }
@@ -322,6 +333,52 @@ function getReviewerName(id: number): string {
   const user = userOptions.value.find((u) => u.id === id);
   return user ? `${user.realName} (${user.username})` : `用户 ${id}`;
 }
+
+// ========== 加载评价数据（编辑模式） ==========
+async function loadEvaluationData() {
+  if (!isEditMode.value) return;
+
+  loading.value = true;
+  try {
+    const res = await getEvaluationById(evaluationId.value);
+    if (res.success) {
+      const ev = res.data;
+
+      // 填充基本信息
+      step1Form.title = ev.title;
+      step1Form.description = ev.description || '';
+      step1Form.visibility = ev.visibility || 'PUBLIC';
+
+      // 填充被评价人
+      participants.value = (ev.participants || []).map((p: any) => ({
+        name: p.name,
+        description: p.description || '',
+        phone: p.phone || '',
+      }));
+
+      // 填充评审人
+      reviewerIds.value = (ev.reviewers || []).map((r: any) => r.reviewerId);
+
+      // 填充评分维度
+      scoreDimensions.value = (ev.scoreDimensions || []).map((d: any) => ({
+        name: d.name,
+        description: d.description || '',
+        maxScore: d.maxScore || 100,
+        weight: d.weight,
+      }));
+    }
+  } catch (error) {
+    console.error('加载评价数据失败:', error);
+    ElMessage.error('加载评价数据失败');
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadUserOptions();
+  loadEvaluationData();
+});
 </script>
 
 <template>
@@ -735,7 +792,7 @@ function getReviewerName(id: number): string {
           :disabled="!isWeightValid"
           @click="handleSubmit"
         >
-          确认创建
+          {{ isEditMode ? '确认更新' : '确认创建' }}
         </el-button>
       </div>
     </el-card>

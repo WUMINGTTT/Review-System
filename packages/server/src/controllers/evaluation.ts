@@ -66,7 +66,7 @@ export async function createEvaluation(req: Request, res: Response) {
         data: {
           title,
           description,
-          visibility,  // 评分可见性：PUBLIC（公开）或 PRIVATE（隐藏）
+          visibility, // 评分可见性：PUBLIC（公开）或 PRIVATE（隐藏）
           createdBy: req.user!.id, // 从 JWT 中获取当前用户 ID
           status: 'DRAFT', // 初始状态为草稿
         },
@@ -108,11 +108,11 @@ export async function createEvaluation(req: Request, res: Response) {
     // 5. 发送通知给审核者
     for (const reviewerId of reviewerIds) {
       await createNotification(
-        reviewerId,                              // userId
-        'ASSIGNED_AS_REVIEWER',                  // type
-        '您被分配为审核者',                        // title
+        reviewerId, // userId
+        'ASSIGNED_AS_REVIEWER', // type
+        '您被分配为审核者', // title
         `您被分配为评价"${title}"的审核者，请关注`, // content
-        evaluation.id                            // relatedId
+        evaluation.id, // relatedId
       );
     }
 
@@ -306,14 +306,24 @@ export async function getEvaluationById(req: Request, res: Response) {
  * 更新评价
  *
  * 权限：只有创建者可以修改
- * 状态限制：只有 DRAFT 状态可以修改
+ * 状态限制：DRAFT 和 REJECTED 状态可以修改
+ *
+ * 特殊逻辑：
+ * - 评审人被移除时，发送通知
+ * - 评分维度变更时，清空已有评分记录
+ * - REJECTED 状态修改后，清除驳回原因，记录修改时间
  */
 export async function updateEvaluation(req: Request, res: Response) {
   try {
     const id = Number(req.params.id);
 
-    // 查询评价
-    const evaluation = await prisma.evaluation.findUnique({ where: { id } });
+    // 查询评价（包含当前评审人）
+    const evaluation = await prisma.evaluation.findUnique({
+      where: { id },
+      include: {
+        reviewers: { select: { reviewerId: true } },
+      },
+    });
     if (!evaluation) {
       return res.status(404).json({
         success: false,
@@ -329,11 +339,11 @@ export async function updateEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 状态检查：只有草稿状态可以修改
-    if (evaluation.status !== 'DRAFT') {
+    // 状态检查：DRAFT 和 REJECTED 状态可以修改
+    if (evaluation.status !== 'DRAFT' && evaluation.status !== 'REJECTED') {
       return res.status(400).json({
         success: false,
-        message: '只有草稿状态的评价可以修改',
+        message: '只有草稿或已驳回状态的评价可以修改',
       });
     }
 
@@ -347,7 +357,7 @@ export async function updateEvaluation(req: Request, res: Response) {
       });
     }
 
-    const { title, description, participants, reviewerIds, scoreDimensions } =
+    const { title, description, visibility, participants, reviewerIds, scoreDimensions } =
       validationResult.data;
 
     // 如果修改了评分维度，验证权重之和
@@ -361,44 +371,159 @@ export async function updateEvaluation(req: Request, res: Response) {
       }
     }
 
+    // 计算评审人变更
+    const currentReviewerIds = evaluation.reviewers.map((r) => r.reviewerId);
+    const removedReviewerIds: number[] = [];
+    const addedReviewerIds: number[] = [];
+
+    if (reviewerIds) {
+      // 被移除的评审人：在旧列表中但不在新列表中
+      removedReviewerIds.push(...currentReviewerIds.filter((rid) => !reviewerIds.includes(rid)));
+      // 新增的评审人：在新列表中但不在旧列表中
+      addedReviewerIds.push(...reviewerIds.filter((rid) => !currentReviewerIds.includes(rid)));
+    }
+
+    // 查询现有的被评价人和评分维度（用于对比变更）
+    const existingParticipants = participants
+      ? await prisma.participant.findMany({ where: { evaluationId: id } })
+      : [];
+    const existingDimensions = scoreDimensions
+      ? await prisma.scoreDimension.findMany({ where: { evaluationId: id } })
+      : [];
+
     // 使用事务更新评价
     const updatedEvaluation = await prisma.$transaction(async (tx) => {
       // 更新评价主记录
-      const updated = await tx.evaluation.update({
-        where: { id },
-        data: {
-          ...(title && { title }),
-          ...(description && { description }),
-        },
-      });
+      const updateData: any = {};
+      if (title) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (visibility) updateData.visibility = visibility;
 
-      // 如果提供了被评价人，替换原有数据
-      if (participants) {
-        // 先删除原有被评价人
-        await tx.participant.deleteMany({ where: { evaluationId: id } });
-        // 再创建新的
-        await tx.participant.createMany({
-          data: participants.map((p) => ({
-            evaluationId: id,
-            name: p.name,
-            description: p.description,
-            phone: p.phone,
-          })),
-        });
+      // REJECTED 状态修改后，清除驳回原因，记录修改时间
+      if (evaluation.status === 'REJECTED') {
+        updateData.rejectReason = null;
+        updateData.modifiedAt = new Date();
       }
 
-      // 如果提供了评分维度，替换原有数据
+      const updated = await tx.evaluation.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // 处理被评价人变更
+      if (participants) {
+        // 按姓名匹配：保留的、新增的、被移除的
+        const existingNameMap = new Map(existingParticipants.map((p) => [p.name, p]));
+        const newNames = new Set(participants.map((p) => p.name));
+
+        // 被移除的被评价人
+        const removedParticipants = existingParticipants.filter((p) => !newNames.has(p.name));
+        if (removedParticipants.length > 0) {
+          const removedIds = removedParticipants.map((p) => p.id);
+          // 删除被移除者的评分记录
+          await tx.dimensionScore.deleteMany({
+            where: { ratingItem: { participantId: { in: removedIds } } },
+          });
+          await tx.ratingItem.deleteMany({
+            where: { participantId: { in: removedIds } },
+          });
+          await tx.participant.deleteMany({
+            where: { id: { in: removedIds } },
+          });
+        }
+
+        // 更新保留的被评价人 & 新增被评价人
+        for (const p of participants) {
+          const existing = existingNameMap.get(p.name);
+          if (existing) {
+            // 更新已存在的
+            await tx.participant.update({
+              where: { id: existing.id },
+              data: {
+                description: p.description,
+                phone: p.phone,
+              },
+            });
+          } else {
+            // 新增
+            await tx.participant.create({
+              data: {
+                evaluationId: id,
+                name: p.name,
+                description: p.description,
+                phone: p.phone,
+              },
+            });
+          }
+        }
+      }
+
+      // 处理评分维度变更
       if (scoreDimensions) {
-        await tx.scoreDimension.deleteMany({ where: { evaluationId: id } });
-        await tx.scoreDimension.createMany({
-          data: scoreDimensions.map((dim) => ({
-            evaluationId: id,
-            name: dim.name,
-            description: dim.description,
-            maxScore: dim.maxScore,
-            weight: dim.weight,
-          })),
-        });
+        // 按维度名称匹配
+        const existingDimMap = new Map(existingDimensions.map((d) => [d.name, d]));
+        const newDimNames = new Set(scoreDimensions.map((d) => d.name));
+
+        // 被移除的维度
+        const removedDimensions = existingDimensions.filter((d) => !newDimNames.has(d.name));
+        if (removedDimensions.length > 0) {
+          const removedDimIds = removedDimensions.map((d) => d.id);
+          // 删除被移除维度的评分
+          await tx.dimensionScore.deleteMany({
+            where: { dimensionId: { in: removedDimIds } },
+          });
+          await tx.scoreDimension.deleteMany({
+            where: { id: { in: removedDimIds } },
+          });
+        }
+
+        // 检查是否有维度属性变更（权重、满分等）
+        let dimensionsChanged = false;
+        for (const dim of scoreDimensions) {
+          const existing = existingDimMap.get(dim.name);
+          if (existing) {
+            if (
+              existing.weight !== dim.weight ||
+              existing.maxScore !== dim.maxScore
+            ) {
+              dimensionsChanged = true;
+              break;
+            }
+          }
+        }
+
+        // 如果维度属性变更，清空所有评分（因为权重变化影响总分计算）
+        if (dimensionsChanged) {
+          await tx.dimensionScore.deleteMany({
+            where: { ratingItem: { evaluationId: id } },
+          });
+          await tx.ratingItem.deleteMany({ where: { evaluationId: id } });
+        }
+
+        // 更新保留的维度 & 新增维度
+        for (const dim of scoreDimensions) {
+          const existing = existingDimMap.get(dim.name);
+          if (existing) {
+            await tx.scoreDimension.update({
+              where: { id: existing.id },
+              data: {
+                description: dim.description,
+                maxScore: dim.maxScore,
+                weight: dim.weight,
+              },
+            });
+          } else {
+            await tx.scoreDimension.create({
+              data: {
+                evaluationId: id,
+                name: dim.name,
+                description: dim.description,
+                maxScore: dim.maxScore,
+                weight: dim.weight,
+              },
+            });
+          }
+        }
       }
 
       // 如果提供了评审人，替换原有数据
@@ -414,6 +539,28 @@ export async function updateEvaluation(req: Request, res: Response) {
 
       return updated;
     });
+
+    // 事务成功后，给被移除的评审人发送通知
+    for (const reviewerId of removedReviewerIds) {
+      await createNotification(
+        reviewerId,
+        'ASSIGNED_AS_REVIEWER',
+        '评审资格变更',
+        `您已被移出评价"${evaluation.title}"的评审人列表`,
+        id,
+      );
+    }
+
+    // 给新增的评审人发送通知
+    for (const reviewerId of addedReviewerIds) {
+      await createNotification(
+        reviewerId,
+        'ASSIGNED_AS_REVIEWER',
+        '您被分配为审核者',
+        `您被分配为评价"${evaluation.title}"的审核者，请关注`,
+        id,
+      );
+    }
 
     res.json({
       success: true,
@@ -454,7 +601,11 @@ export async function deleteEvaluation(req: Request, res: Response) {
     }
 
     // 状态检查：草稿、已通过、已归档状态可以删除
-    if (evaluation.status !== 'DRAFT' && evaluation.status !== 'APPROVED' && evaluation.status !== 'ARCHIVED') {
+    if (
+      evaluation.status !== 'DRAFT' &&
+      evaluation.status !== 'APPROVED' &&
+      evaluation.status !== 'ARCHIVED'
+    ) {
       return res.status(400).json({
         success: false,
         message: '只有草稿、已通过或已归档状态的评价可以删除',
@@ -538,11 +689,11 @@ export async function submitEvaluation(req: Request, res: Response) {
 
     for (const reviewer of reviewers) {
       await createNotification(
-        reviewer.reviewerId,                          // userId
-        'EVALUATION_SUBMITTED',                       // type
-        '您有新的评价待审核',                           // title
+        reviewer.reviewerId, // userId
+        'EVALUATION_SUBMITTED', // type
+        '您有新的评价待审核', // title
         `评价"${evaluation.title}"已提交，请及时审核`, // content
-        evaluation.id                                 // relatedId
+        evaluation.id, // relatedId
       );
     }
 
@@ -611,7 +762,7 @@ export async function approveEvaluation(req: Request, res: Response) {
       'EVALUATION_APPROVED',
       '您的评价已通过审核',
       `评价"${evaluation.title}"已通过审核`,
-      evaluation.id
+      evaluation.id,
     );
 
     res.json({
@@ -691,7 +842,7 @@ export async function rejectEvaluation(req: Request, res: Response) {
       'EVALUATION_REJECTED',
       '您的评价已被驳回',
       `评价"${evaluation.title}"已被驳回，原因：${validationResult.data.rejectReason}`,
-      evaluation.id
+      evaluation.id,
     );
 
     res.json({
@@ -755,11 +906,11 @@ export async function archiveEvaluation(req: Request, res: Response) {
 
     // 发送通知给创建者
     await createNotification(
-      evaluation.createdBy,           // userId
-      'EVALUATION_ARCHIVED',          // type
-      '您的评价已归档',                 // title
+      evaluation.createdBy, // userId
+      'EVALUATION_ARCHIVED', // type
+      '您的评价已归档', // title
       `评价"${evaluation.title}"已归档`, // content
-      evaluation.id                   // relatedId
+      evaluation.id, // relatedId
     );
 
     res.json({
@@ -871,7 +1022,7 @@ export async function submitRatings(req: Request, res: Response) {
 
         // 判断该被评价人的评分是否完整（所有维度都有分数）
         const allDimensionsScored = evaluation.scoreDimensions.every((d) =>
-          rating.scores.some((s) => s.dimensionId === d.id && s.score > 0 && s.score <= d.maxScore)
+          rating.scores.some((s) => s.dimensionId === d.id && s.score > 0 && s.score <= d.maxScore),
         );
 
         // 创建 RatingItem，完整的设为 SUBMITTED，不完整的设为 DRAFT
@@ -887,15 +1038,13 @@ export async function submitRatings(req: Request, res: Response) {
 
         // 创建各维度的 DimensionScore
         for (const scoreData of rating.scores) {
-          const dimension = evaluation.scoreDimensions.find(
-            (d) => d.id === scoreData.dimensionId
-          );
+          const dimension = evaluation.scoreDimensions.find((d) => d.id === scoreData.dimensionId);
           if (!dimension) continue;
 
           // 验证分数不超过满分
           if (scoreData.score > dimension.maxScore) {
             throw new Error(
-              `被评价人"${participant.name}"的"${dimension.name}"评分不能超过 ${dimension.maxScore}`
+              `被评价人"${participant.name}"的"${dimension.name}"评分不能超过 ${dimension.maxScore}`,
             );
           }
 

@@ -12,7 +12,7 @@
  * - 评审人：可审核通过(SUBMITTED)、打回(SUBMITTED)、归档(APPROVED)
  * - 管理员：可归档(APPROVED)
  */
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useUserStore } from '@/stores/user';
@@ -24,6 +24,15 @@ import {
   rejectEvaluation,
   archiveEvaluation,
 } from '@/api/evaluation';
+import * as echarts from 'echarts/core';
+import { RadarChart, BarChart } from 'echarts/charts';
+import { TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { Download, Edit } from '@element-plus/icons-vue';
+
+echarts.use([RadarChart, BarChart, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer]);
 
 const route = useRoute();
 const router = useRouter();
@@ -146,6 +155,99 @@ const scoreSummary = computed(() => {
       comment: rating.comment || '-',
     };
   });
+});
+
+// ========== 图表 ==========
+const chartRef = ref<HTMLDivElement>();
+let chartInstance: echarts.ECharts | null = null;
+const chartType = ref<'radar' | 'bar'>('radar');
+
+const chartColors = [
+  '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
+  '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#48b8d0',
+];
+
+function initChart() {
+  if (!chartRef.value || !scoreSummary.value.length) return;
+
+  const dimensions = evaluation.value?.scoreDimensions || [];
+  if (!dimensions.length) return;
+
+  if (chartInstance) {
+    chartInstance.dispose();
+  }
+
+  chartInstance = echarts.init(chartRef.value);
+
+  let option: echarts.EChartsCoreOption;
+
+  if (chartType.value === 'radar') {
+    // 雷达图
+    const indicator = dimensions.map((d: any) => ({ name: d.name, max: 100 }));
+    const seriesData = scoreSummary.value.map((item: any, index: number) => ({
+      name: item.name,
+      value: dimensions.map((d: any) => item.scores[d.id] ?? 0),
+      lineStyle: { width: 2 },
+      areaStyle: { opacity: 0.15 },
+      itemStyle: { color: chartColors[index % chartColors.length] },
+    }));
+
+    option = {
+      tooltip: { trigger: 'item' },
+      legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 12 } },
+      radar: {
+        indicator,
+        shape: 'polygon',
+        splitNumber: 4,
+        axisName: { color: '#606266', fontSize: 12 },
+        splitArea: { areaStyle: { color: ['#fff', '#f5f7fa', '#fff', '#f5f7fa'] } },
+      },
+      series: [{ type: 'radar', data: seriesData }],
+    };
+  } else {
+    // 柱状图
+    const categories = dimensions.map((d: any) => d.name);
+    const barSeries = scoreSummary.value.map((item: any, index: number) => ({
+      name: item.name,
+      type: 'bar' as const,
+      data: dimensions.map((d: any) => item.scores[d.id] ?? 0),
+      itemStyle: { color: chartColors[index % chartColors.length], borderRadius: [4, 4, 0, 0] },
+    }));
+
+    option = {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 12 } },
+      grid: { left: 40, right: 20, top: 20, bottom: 50 },
+      xAxis: {
+        type: 'category',
+        data: categories,
+        axisLabel: { color: '#606266', fontSize: 12 },
+      },
+      yAxis: {
+        type: 'value',
+        max: 100,
+        axisLabel: { color: '#909399' },
+        splitLine: { lineStyle: { color: '#f0f0f0' } },
+      },
+      series: barSeries,
+    };
+  }
+
+  chartInstance.setOption(option);
+}
+
+function switchChartType(type: 'radar' | 'bar') {
+  chartType.value = type;
+  nextTick(() => initChart());
+}
+
+function handleChartResize() {
+  chartInstance?.resize();
+}
+
+// 监听数据变化重新渲染
+watch(scoreSummary, () => {
+  nextTick(() => initChart());
 });
 
 // 状态映射
@@ -286,9 +388,226 @@ async function handleDelete() {
   }
 }
 
+// 导出 PDF
+async function handleExport() {
+  if (!evaluation.value) return;
+
+  const loading = ElMessage({ message: '正在生成 PDF...', type: 'info', duration: 0 });
+
+  try {
+    const ev = evaluation.value;
+    const dimensions = ev.scoreDimensions || [];
+    const participants = ev.participants || [];
+    const reviewers = ev.reviewers || [];
+
+    // 获取雷达图图片
+    let chartImage = '';
+    if (chartInstance) {
+      chartImage = chartInstance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' });
+    }
+
+    // 构建报告 HTML
+    const html = `
+      <div id="pdf-report" style="width: 800px; padding: 40px; font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #303133; line-height: 1.6;">
+        <!-- 标题 -->
+        <div style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #409eff;">
+          <h1 style="margin: 0 0 10px; font-size: 28px; color: #1a2332;">${ev.title}</h1>
+          <div style="font-size: 14px; color: #606266;">
+            <span style="display: inline-block; padding: 2px 12px; border-radius: 12px; background: ${ev.status === 'ARCHIVED' ? '#e6f7e6' : '#fff3e6'}; color: ${ev.status === 'ARCHIVED' ? '#52c41a' : '#fa8c16'}; margin-right: 16px;">
+              ${statusMap[ev.status]?.label || ev.status}
+            </span>
+            组织者：${ev.creator?.realName || ev.creator?.username || '-'}
+          </div>
+        </div>
+
+        <!-- 基本信息 -->
+        <div style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">基本信息</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr><td style="padding: 8px 12px; background: #f5f7fa; width: 100px; color: #606266;">可见性</td><td style="padding: 8px 12px;">${visibilityMap[ev.visibility] || ev.visibility}</td></tr>
+            <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">创建时间</td><td style="padding: 8px 12px;">${formatDate(ev.createdAt)}</td></tr>
+            <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">提交时间</td><td style="padding: 8px 12px;">${formatDate(ev.submittedAt)}</td></tr>
+            <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">审核时间</td><td style="padding: 8px 12px;">${formatDate(ev.reviewedAt)}</td></tr>
+            <tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">归档时间</td><td style="padding: 8px 12px;">${formatDate(ev.archivedAt)}</td></tr>
+            ${ev.description ? `<tr><td style="padding: 8px 12px; background: #f5f7fa; color: #606266;">评价说明</td><td style="padding: 8px 12px;">${ev.description}</td></tr>` : ''}
+          </table>
+        </div>
+
+        <!-- 被评价人 -->
+        <div style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">被评价人（${participants.length} 人）</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: #f5f7fa;">
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">序号</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">姓名</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${participants.map((p: any, i: number) => `
+                <tr style="border-bottom: 1px solid #ebeef5;">
+                  <td style="padding: 8px 12px;">${i + 1}</td>
+                  <td style="padding: 8px 12px;">${p.name}</td>
+                  <td style="padding: 8px 12px; color: #909399;">${p.description || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 评审人 -->
+        <div style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">评审人（${reviewers.length} 人）</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: #f5f7fa;">
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">序号</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">姓名</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">用户名</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reviewers.map((r: any, i: number) => `
+                <tr style="border-bottom: 1px solid #ebeef5;">
+                  <td style="padding: 8px 12px;">${i + 1}</td>
+                  <td style="padding: 8px 12px;">${r.reviewer?.realName || r.reviewer?.username || '-'}</td>
+                  <td style="padding: 8px 12px; color: #909399;">${r.reviewer?.username || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 评分维度 -->
+        <div style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">评分维度（${dimensions.length} 个）</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: #f5f7fa;">
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">序号</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">维度名称</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">权重</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">满分</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">说明</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dimensions.map((d: any, i: number) => `
+                <tr style="border-bottom: 1px solid #ebeef5;">
+                  <td style="padding: 8px 12px;">${i + 1}</td>
+                  <td style="padding: 8px 12px;">${d.name}</td>
+                  <td style="padding: 8px 12px;">${d.weight}%</td>
+                  <td style="padding: 8px 12px;">${d.maxScore} 分</td>
+                  <td style="padding: 8px 12px; color: #909399;">${d.description || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 雷达图 -->
+        ${chartImage ? `
+        <div style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">评分雷达图</h2>
+          <div style="text-align: center;">
+            <img src="${chartImage}" style="max-width: 100%; height: auto;" />
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- 评分总览 -->
+        ${scoreSummary.value.length ? `
+        <div style="margin-bottom: 24px;">
+          <h2 style="font-size: 18px; color: #1a2332; border-left: 4px solid #409eff; padding-left: 12px; margin-bottom: 16px;">评分总览</h2>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background: #f5f7fa;">
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">被评价人</th>
+                ${dimensions.map((d: any) => `<th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">${d.name}</th>`).join('')}
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">加权总分</th>
+                <th style="padding: 8px 12px; text-align: left; border-bottom: 1px solid #ebeef5;">评语</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scoreSummary.value.map((item: any) => `
+                <tr style="border-bottom: 1px solid #ebeef5;">
+                  <td style="padding: 8px 12px; font-weight: 500;">${item.name}</td>
+                  ${dimensions.map((d: any) => `<td style="padding: 8px 12px;">${item.scores[d.id] ?? '-'}</td>`).join('')}
+                  <td style="padding: 8px 12px; font-weight: 600; color: #409eff;">${item.total}</td>
+                  <td style="padding: 8px 12px; color: #606266; max-width: 200px;">${item.comment || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        <!-- 页脚 -->
+        <div style="margin-top: 40px; padding-top: 16px; border-top: 1px solid #ebeef5; text-align: center; font-size: 12px; color: #909399;">
+          导出时间：${new Date().toLocaleString()} | 评价系统
+        </div>
+      </div>
+    `;
+
+    // 创建临时容器
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    // 使用 html2canvas 渲染
+    const canvas = await html2canvas(container.querySelector('#pdf-report') as HTMLElement, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+
+    // 移除临时容器
+    document.body.removeChild(container);
+
+    // 创建 PDF
+    const imgWidth = 210; // A4 宽度 mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    // 分页处理
+    const pageHeight = 297; // A4 高度 mm
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    // 保存文件
+    pdf.save(`${ev.title}_评价报告.pdf`);
+    loading.close();
+    ElMessage.success('导出成功');
+  } catch (error) {
+    loading.close();
+    console.error('导出 PDF 失败:', error);
+    ElMessage.error('导出失败');
+  }
+}
+
 // 页面加载
 onMounted(() => {
   fetchDetail();
+  window.addEventListener('resize', handleChartResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleChartResize);
+  chartInstance?.dispose();
 });
 </script>
 
@@ -303,6 +622,24 @@ onMounted(() => {
 
     <!-- 操作栏 -->
     <div v-if="evaluation && hasActions" class="action-bar">
+      <!-- 导出按钮：APPROVED 禁用提示需归档，ARCHIVED 可导出 -->
+      <el-tooltip
+        v-if="evaluation.status === 'APPROVED' || evaluation.status === 'ARCHIVED'"
+        :disabled="evaluation.status === 'ARCHIVED'"
+        content="请先归档后再导出"
+        placement="top"
+      >
+        <el-button
+          type="success"
+          plain
+          :disabled="evaluation.status === 'APPROVED'"
+          @click="handleExport"
+        >
+          <el-icon style="margin-right: 4px"><Download /></el-icon>
+          导出 PDF
+        </el-button>
+      </el-tooltip>
+
       <!-- 审核者操作：SUBMITTED 可通过/打回，APPROVED 可归档 -->
       <template v-if="isReviewer">
         <el-button v-if="evaluation.status === 'SUBMITTED'" type="success" @click="handleApprove">
@@ -331,8 +668,17 @@ onMounted(() => {
         归档
       </el-button>
 
-      <!-- 创建者操作：DRAFT/REJECTED 可评分+提交，DRAFT/APPROVED/ARCHIVED 可删除 -->
+      <!-- 创建者操作：DRAFT/REJECTED 可编辑+评分+提交，DRAFT/APPROVED/ARCHIVED 可删除 -->
       <template v-if="isCreator">
+        <el-button
+          v-if="evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED'"
+          type="primary"
+          plain
+          @click="router.push(`/evaluations/${evaluationId}/edit`)"
+        >
+          <el-icon style="margin-right: 4px"><Edit /></el-icon>
+          编辑
+        </el-button>
         <el-button
           v-if="evaluation.status === 'DRAFT' || evaluation.status === 'REJECTED'"
           type="warning"
@@ -508,8 +854,19 @@ onMounted(() => {
       <!-- 评分总览（仅当有评分记录时显示） -->
       <el-card v-if="evaluation.ratingItems?.length" class="section-card">
         <template #header>
-          <span class="section-title">评分总览</span>
+          <div class="chart-header">
+            <span class="section-title">评分总览</span>
+            <div class="chart-toggle">
+              <el-button-group size="small">
+                <el-button :type="chartType === 'radar' ? 'primary' : ''" @click="switchChartType('radar')">雷达图</el-button>
+                <el-button :type="chartType === 'bar' ? 'primary' : ''" @click="switchChartType('bar')">柱状图</el-button>
+              </el-button-group>
+            </div>
+          </div>
         </template>
+        <!-- 图表 -->
+        <div ref="chartRef" class="score-chart"></div>
+        <!-- 分数卡片 -->
         <div class="info-grid">
           <div v-for="item in scoreSummary" :key="item.name" class="score-item">
             <div class="score-item-header">
@@ -685,6 +1042,19 @@ onMounted(() => {
   word-break: break-all;
 }
 
+/* 图表 */
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.score-chart {
+  width: 100%;
+  height: 320px;
+  margin-bottom: 20px;
+}
+
 /* 评分总览卡片 */
 .score-item {
   padding: 12px;
@@ -753,6 +1123,10 @@ onMounted(() => {
   :deep(.el-dialog) {
     width: 95vw !important;
     margin: 10px auto;
+  }
+
+  .score-chart {
+    height: 260px;
   }
 }
 </style>

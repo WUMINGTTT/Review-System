@@ -74,6 +74,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '评分', backTo: '/evaluations' },
       },
       {
+        path: 'evaluations/:id/edit',
+        name: 'EvaluationEdit',
+        component: () => import('../views/evaluations/Create.vue'),
+        meta: { title: '编辑评价', backTo: '/evaluations' },
+      },
+      {
         path: 'reviews',
         name: 'Reviews',
         component: () => import('../views/reviews/Index.vue'),
@@ -84,6 +90,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Notifications',
         component: () => import('../views/notifications/Index.vue'),
         meta: { title: '通知中心', backTo: '/dashboard', backMode: 'back' },
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('../views/profile/Index.vue'),
+        meta: { title: '个人中心', backTo: '/dashboard', backMode: 'back' },
       },
       {
         path: 'users',

@@ -15,6 +15,7 @@
 
 import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import { ElMessage } from 'element-plus';
 
 /**
  * 创建 axios 实例
@@ -88,6 +89,12 @@ request.interceptors.response.use(
       const { status, data } = error.response;
       const isLoginRequest = error.config?.url?.includes('/auth/login');
 
+      // 请求过于频繁
+      if (status === 429) {
+        ElMessage.warning(data?.error || data?.message || '请求过于频繁，请稍后再试');
+        return Promise.reject(error);
+      }
+
       // 只处理 401 跳转登录页（排除登录接口本身）
       if (status === 401 && !isLoginRequest) {
         // 清除本地存储的用户信息
@@ -96,7 +103,6 @@ request.interceptors.response.use(
 
         // 如果是账号被禁用，显示提示信息
         if (data?.message === '账号已被禁用，请联系管理员') {
-          // 使用 alert 或其他方式提示用户
           alert(data.message);
         }
 

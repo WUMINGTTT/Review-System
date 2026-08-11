@@ -79,13 +79,23 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 
 // rateLimit() - API 限流
-// 防止恶意请求，开发环境放宽限制
+// 登录接口严格限流（防暴力破解），其他接口宽松（允许正常使用）
 const isDev = process.env.NODE_ENV !== 'production';
+
+// 登录接口：15分钟内最多10次尝试
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 100 : 10,
+  message: { success: false, error: '登录尝试过于频繁，请15分钟后再试' },
+});
+
+// 通用接口：15分钟内300次（约每秒0.3次，正常使用足够）
 const apiLimiter = rateLimit({
-  windowMs: isDev ? 60 * 1000 : 15 * 60 * 1000, // 开发 1 分钟，生产 15 分钟
-  max: isDev ? 300 : 100, // 开发 300 次，生产 100 次
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 300 : 300,
   message: { success: false, error: '请求过于频繁，请稍后再试' },
 });
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/', apiLimiter);
 
 // ========== 6. 注册路由 ==========

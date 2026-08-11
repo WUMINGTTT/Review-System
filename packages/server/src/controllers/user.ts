@@ -232,6 +232,12 @@ export async function updateUser(req: Request, res: Response) {
 
     // 更新用户，roles 需要序列化为 JSON 字符串
     const updateData: any = { ...validationResult.data };
+
+    // 空邮箱转换为 null
+    if (updateData.email === '') {
+      updateData.email = null;
+    }
+
     const rolesChanged = !!updateData.roles;
     if (rolesChanged) {
       updateData.roles = JSON.stringify(updateData.roles);

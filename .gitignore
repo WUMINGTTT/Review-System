@@ -29,3 +29,4 @@ pnpm-debug.log*
 
 # 开发文档（个人学习用，不提交）
 docs/
+deploy.sh

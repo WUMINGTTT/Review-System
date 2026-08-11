@@ -115,11 +115,13 @@ function openEditDialog(user: any) {
 async function handleSaveEdit() {
   editLoading.value = true;
   try {
-    const res = await updateUser(editForm.value.id, {
-      realName: editForm.value.realName,
-      email: editForm.value.email,
-      roles: editForm.value.roles,
-    });
+    const data: any = {
+      email: editForm.value.email || '',
+    };
+    if (editForm.value.realName) data.realName = editForm.value.realName;
+    if (editForm.value.roles) data.roles = editForm.value.roles;
+    console.log('发送数据:', JSON.stringify(data));
+    const res = await updateUser(editForm.value.id, data);
     if (res.success) {
       ElMessage.success('更新成功');
       editDialogVisible.value = false;
@@ -131,8 +133,12 @@ async function handleSaveEdit() {
 
       fetchUsers();
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('更新用户失败:', error);
+    if (error?.response?.data) {
+      console.error('后端返回:', JSON.stringify(error.response.data));
+      ElMessage.error(error.response.data.message || '更新失败');
+    }
   } finally {
     editLoading.value = false;
   }

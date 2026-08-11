@@ -1,13 +1,21 @@
 import { z } from 'zod';
 
 /**
+ * 邮箱验证：允许空字符串或有效邮箱
+ */
+const emailField = z.union([
+  z.literal(''),
+  z.string().email({ message: '邮箱地址无效' }),
+]).optional();
+
+/**
  * 管理员创建用户验证
  */
 export const createUserSchema = z.object({
   username: z.string().min(3, { message: '用户名长度至少为3个字符' }),
   password: z.string().min(6, { message: '密码必须至少为6个字符' }),
   realName: z.string().min(1, { message: '真实姓名不能为空' }),
-  email: z.string().email({ message: '邮箱地址无效' }).optional().or(z.literal('')),
+  email: emailField,
   roles: z.array(z.enum(['user', 'admin'])).optional(),
 });
 
@@ -19,7 +27,7 @@ export const createUserSchema = z.object({
  */
 export const updateUserSchema = z.object({
   realName: z.string().min(1, { message: '真实姓名不能为空' }).optional(),
-  email: z.string().email({ message: '邮箱地址无效' }).optional().or(z.literal('')),
+  email: emailField,
 });
 
 /**

@@ -190,6 +190,8 @@ export async function updateUser(req: Request, res: Response) {
     const validationResult = schema.safeParse(req.body);
 
     if (!validationResult.success) {
+      console.error('用户更新验证失败:', JSON.stringify(validationResult.error.issues, null, 2));
+      console.error('请求体:', JSON.stringify(req.body, null, 2));
       return res.status(400).json({
         success: false,
         message: '参数验证失败',
@@ -206,12 +208,17 @@ export async function updateUser(req: Request, res: Response) {
       });
     }
 
-    // 禁止修改自己的角色
+    // 禁止修改自己的角色（只有当角色确实发生变化时才拦截）
     if (isSelf && isAdmin && (validationResult.data as any).roles) {
-      return res.status(400).json({
-        success: false,
-        message: '不能修改自己的角色',
-      });
+      const currentRoles = JSON.parse(existingUser.roles as string);
+      const newRoles = (validationResult.data as any).roles;
+      const rolesChanged = JSON.stringify(currentRoles.sort()) !== JSON.stringify(newRoles.sort());
+      if (rolesChanged) {
+        return res.status(400).json({
+          success: false,
+          message: '不能修改自己的角色',
+        });
+      }
     }
 
     // 如果要修改邮箱，检查是否已被其他用户使用

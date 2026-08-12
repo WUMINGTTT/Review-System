@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "pnpm --filter @review-system/client dev & pnpm --filter @review-system/server dev",
+    "dev": "concurrently \"pnpm --filter @review-system/client dev\" \"pnpm --filter @review-system/server dev\"",
     "dev:client": "pnpm --filter @review-system/client dev",
     "dev:server": "pnpm --filter @review-system/server dev",
     "format": "prettier --write \"packages/**/*.{ts,vue,json,css,scss}\""
@@ -30,5 +30,8 @@
     "prettier": "^3.9.6",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "concurrently": "^10.0.4"
   }
 }

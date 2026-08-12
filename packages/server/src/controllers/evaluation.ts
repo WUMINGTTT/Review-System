@@ -48,7 +48,17 @@ export async function createEvaluation(req: Request, res: Response) {
       });
     }
 
-    // 3. 验证评审人是否存在
+    // 3. 验证评分维度名称不能重复
+    const dimNames = scoreDimensions.map((dim) => dim.name);
+    const duplicateNames = dimNames.filter((name, index) => dimNames.indexOf(name) !== index);
+    if (duplicateNames.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `评分维度名称重复：${duplicateNames[0]}`,
+      });
+    }
+
+    // 4. 验证评审人是否存在
     const reviewers = await prisma.user.findMany({
       where: { id: { in: reviewerIds } },
     });

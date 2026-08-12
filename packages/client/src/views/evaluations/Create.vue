@@ -309,6 +309,14 @@ async function removeDimension(index: number) {
 
 // ========== 步骤 5: 提交 ==========
 async function handleSubmit() {
+  // 检查评分维度名称是否重复
+  const dimNames = scoreDimensions.value.map((d) => d.name.trim()).filter(Boolean);
+  const duplicates = dimNames.filter((name, i) => dimNames.indexOf(name) !== i);
+  if (duplicates.length > 0) {
+    ElMessage.warning(`评分维度名称重复：${duplicates[0]}`);
+    return;
+  }
+
   loading.value = true;
   try {
     const data = {

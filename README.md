@@ -85,17 +85,6 @@ pnpm dev
 
 ## 部署
 
-### 一键部署
-
-```bash
-cd /home/deploy/Review-System
-bash deploy.sh
-```
-
-脚本会自动完成：拉取最新代码 → 安装依赖 → 同步数据库 → 构建前端 → 构建后端 → 重启服务。
-
-### 手动部署
-
 ```bash
 # 拉取代码
 git pull origin main
@@ -118,8 +107,6 @@ npm run build
 # 重启服务
 pm2 restart review-system
 ```
-
-详细部署文档请参考 [docs/deployment-aliyun.md](docs/deployment-aliyun.md)。
 
 ---
 

@@ -650,7 +650,6 @@ onMounted(() => {
           <el-table-column prop="description" label="说明" min-width="150">
             <template #default="{ row }">{{ row.description || '-' }}</template>
           </el-table-column>
-          <el-table-column prop="maxScore" label="满分值" width="100" align="center" />
           <el-table-column label="权重" width="100" align="center">
             <template #default="{ row }"> {{ row.weight }}% </template>
           </el-table-column>
@@ -685,10 +684,6 @@ onMounted(() => {
               <span class="item-label">说明</span>
               <span class="item-value">{{ dim.description }}</span>
             </div>
-            <div class="item-detail">
-              <span class="item-label">满分</span>
-              <span class="item-value">{{ dim.maxScore }} 分</span>
-            </div>
           </div>
         </div>
 
@@ -715,15 +710,6 @@ onMounted(() => {
           </el-form-item>
           <el-form-item label="维度说明">
             <el-input v-model="dimensionForm.description" placeholder="请输入维度说明（选填）" />
-          </el-form-item>
-          <el-form-item label="满分值">
-            <el-input-number
-              v-model="dimensionForm.maxScore"
-              :min="1"
-              :max="1000"
-              style="width: 90%"
-            />
-            <span class="weight-suffix" style="width: 5%">分</span>
           </el-form-item>
           <el-form-item label="权重">
             <el-input-number
@@ -806,7 +792,6 @@ onMounted(() => {
             <el-table-column prop="description" label="说明">
               <template #default="{ row }">{{ row.description || '-' }}</template>
             </el-table-column>
-            <el-table-column prop="maxScore" label="满分值" width="100" align="center" />
             <el-table-column label="权重" width="100" align="center">
               <template #default="{ row }"> {{ row.weight }}% </template>
             </el-table-column>

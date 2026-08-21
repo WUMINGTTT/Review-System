@@ -76,13 +76,6 @@ pnpm dev
 
 ---
 
-## 文档
-
-- [用户使用手册](docs/user-manual.md) - 系统各功能模块的使用说明
-- [阿里云部署指南](docs/deployment-aliyun.md) - 服务器部署完整教程
-
----
-
 ## 部署
 
 ```bash
